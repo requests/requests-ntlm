@@ -1,4 +1,4 @@
-# requests_ntlm
+# requests-ntlm
 
 This package allows for HTTP NTLM authentication using the requests library.
 
