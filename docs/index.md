@@ -24,4 +24,4 @@ The package hasn't been uploaded to pip yet, but it can be installed by running:
 
 ## Authors
 
-- Ben Toews
+- (Ben Toews)[https://github.com/mastahyeti]
