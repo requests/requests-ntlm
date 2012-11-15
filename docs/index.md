@@ -6,10 +6,12 @@ This package allows for HTTP NTLM authentication using the requests library.
 
 `HttpNtlmAuth` extends requests `AuthBase`, so usage is simple:
 
-    import requests
-    from requests_ntlm import HttpNtlmAuth
+```python
+import requests
+from requests_ntlm import HttpNtlmAuth
 
-    requests.get("http://ntlm_protected_site.com",auth=HttpNtlmAuth('domain\\username','password'))
+requests.get("http://ntlm_protected_site.com",auth=HttpNtlmAuth('domain\\username','password'))
+```
 
 ## Installation
 
