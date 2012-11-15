@@ -19,9 +19,9 @@ The package hasn't been uploaded to pip yet, but it can be installed by running:
 
 ## Requirements
 
-- (`requests`)[https://github.com/kennethreitz/requests/]
-- (`python-ntlm`)[http://code.google.com/p/python-ntlm/]
+- [`requests`](https://github.com/kennethreitz/requests/)
+- [`python-ntlm`](http://code.google.com/p/python-ntlm/)
 
 ## Authors
 
-- (Ben Toews)[https://github.com/mastahyeti]
+- [Ben Toews](https://github.com/mastahyeti)
