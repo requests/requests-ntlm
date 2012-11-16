@@ -8,7 +8,7 @@ Usage
 
 ``HttpNtlmAuth`` extends requests ``AuthBase``, so usage is simple:
 
-::
+.. code:: python
 
     import requests
     from requests_ntlm import HttpNtlmAuth
