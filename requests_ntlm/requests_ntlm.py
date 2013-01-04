@@ -2,6 +2,9 @@ from requests.auth import AuthBase
 from requests.adapters import HTTPAdapter
 from ntlm import ntlm
 
+import requests
+if int(requests.__version__.split('.')[0]) < 1:
+    raise Exception('You should be using requests version > 1.0.0')
 
 class HttpNtlmAuth(AuthBase):
     """HTTP NTLM Authentication Handler for Requests. Supports pass-the-hash."""
