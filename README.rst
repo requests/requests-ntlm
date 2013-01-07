@@ -38,3 +38,11 @@ Authors
 - `Ben Toews`_
 
 .. _Ben Toews: https://github.com/mastahyeti
+
+- `Ian Cordasco`_
+
+.. _Ian Cordasco: https://github.com/sigmavirus24
+
+- `Cory Benfield`_
+
+.. _Cory Benfield: https://github.com/Lukasa
