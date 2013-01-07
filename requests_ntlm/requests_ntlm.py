@@ -1,4 +1,5 @@
 from requests.auth import AuthBase
+from requests.adapters import HTTPAdapter
 from ntlm import ntlm
 
 
@@ -18,6 +19,7 @@ class HttpNtlmAuth(AuthBase):
         self.username = user_parts[1]
 
         self.password = password
+        self.adapter = HTTPAdapter()
 
 
     def retry_using_http_NTLM_auth(self, auth_header_field, auth_header, response):
@@ -34,8 +36,7 @@ class HttpNtlmAuth(AuthBase):
         # we must keep the connection because NTLM authenticates the connection, not single requests
         request.headers["Connection"] = "Keep-Alive"
 
-        request.send(anyway=True)
-        response2 = request.response
+        response2 = self.adapter.send(request)
 
         # this is important for some web applications that store authentication-related info in cookies (it took a long time to figure out)        
         if response2.headers.get('set-cookie'):
@@ -50,9 +51,9 @@ class HttpNtlmAuth(AuthBase):
         request.headers[auth_header] = auth
         request.headers["Connection"] = "Close"
 
-        request.send(anyway=True)
+        response = self.adapter.send(request)
 
-        return request.response
+        return response
 
 
     def response_hook(self,r):
