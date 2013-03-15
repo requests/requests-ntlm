@@ -12,7 +12,7 @@ class HttpNtlmAuth(AuthBase):
             :password   - Password or hash in "ABCDABCDABCDABCD:ABCDABCDABCDABCD" format.
         """
         if ntlm is None:
-            raise Exception("NTLM libraries unavailable")        
+            raise Exception("NTLM libraries unavailable")
         #parse the username
         user_parts = username.split('\\', 1)
         self.domain = user_parts[0].upper()
@@ -38,9 +38,9 @@ class HttpNtlmAuth(AuthBase):
 
         response2 = self.adapter.send(request)
 
-        # this is important for some web applications that store authentication-related info in cookies (it took a long time to figure out)        
+        # this is important for some web applications that store authentication-related info in cookies (it took a long time to figure out)
         if response2.headers.get('set-cookie'):
-            headers['Cookie'] = response2.headers.get('set-cookie')
+            request.headers['Cookie'] = response2.headers.get('set-cookie')
 
         # get the challenge
         auth_header_value = response2.headers[auth_header_field]
