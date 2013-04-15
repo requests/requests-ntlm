@@ -56,7 +56,7 @@ class HttpNtlmAuth(AuthBase):
         return response
 
 
-    def response_hook(self,r):
+    def response_hook(self,r,**kwargs):
 
         if r.status_code == 401 and 'ntlm' in r.headers.get('www-authenticate','').lower():
             return self.retry_using_http_NTLM_auth('www-authenticate', 'Authorization', r)
