@@ -21,8 +21,8 @@ class HttpNtlmAuth(AuthBase):
         self.password = password
         self.adapter = HTTPAdapter()
 
-
-    def retry_using_http_NTLM_auth(self, auth_header_field, auth_header, response):
+    def retry_using_http_NTLM_auth(self, auth_header_field, auth_header,
+                                   response, args):
         """Attempts to authenticate using HTTP NTLM challenge/response"""
 
         if auth_header in response.request.headers:
@@ -36,7 +36,7 @@ class HttpNtlmAuth(AuthBase):
         # we must keep the connection because NTLM authenticates the connection, not single requests
         request.headers["Connection"] = "Keep-Alive"
 
-        response2 = self.adapter.send(request)
+        response2 = self.adapter.send(request, **args)
 
         # this is important for some web applications that store authentication-related info in cookies (it took a long time to figure out)
         if response2.headers.get('set-cookie'):
@@ -51,22 +51,23 @@ class HttpNtlmAuth(AuthBase):
         request.headers[auth_header] = auth
         request.headers["Connection"] = "Close"
 
-        response = self.adapter.send(request)
+        response = self.adapter.send(request, **args)
 
         return response
 
-
-    def response_hook(self,r,**kwargs):
+    def response_hook(self, r, **kwargs):
 
         if r.status_code == 401 and 'ntlm' in r.headers.get('www-authenticate','').lower():
-            return self.retry_using_http_NTLM_auth('www-authenticate', 'Authorization', r)
+            return self.retry_using_http_NTLM_auth('www-authenticate',
+                                                   'Authorization', r, kwargs)
 
         if r.status_code == 407 and 'ntlm' in r.headers.get('proxy-authenticate','').lower():
-            return self.retry_using_http_NTLM_auth('proxy-authenticate', 'Proxy-authorization', r)
+            return self.retry_using_http_NTLM_auth('proxy-authenticate',
+                                                   'Proxy-authorization', r,
+                                                   kwargs)
 
         return r
 
-
-    def __call__(self,r):
+    def __call__(self, r):
         r.register_hook('response', self.response_hook)
         return r
