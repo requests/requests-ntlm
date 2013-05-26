@@ -51,9 +51,13 @@ class HttpNtlmAuth(AuthBase):
         request.headers[auth_header] = auth
         request.headers["Connection"] = "Close"
 
-        response = self.adapter.send(request, **args)
+        response3 = self.adapter.send(request, **args)
 
-        return response
+        # Update the history.
+        response3.history.append(response)
+        response3.history.append(response2)
+
+        return response3
 
     def response_hook(self, r, **kwargs):
 
