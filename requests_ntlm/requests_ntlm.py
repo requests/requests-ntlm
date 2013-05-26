@@ -1,5 +1,6 @@
 from requests.auth import AuthBase
 from requests.adapters import HTTPAdapter
+from requests.models import PreparedRequest
 from ntlm import ntlm
 
 
@@ -28,7 +29,8 @@ class HttpNtlmAuth(AuthBase):
         if auth_header in response.request.headers:
             return response
 
-        request = response.request
+        request = copy_request(response.request)
+
         # initial auth header with username. will result in challenge
         auth = 'NTLM %s' % ntlm.create_NTLM_NEGOTIATE_MESSAGE("%s\\%s" % (self.domain,self.username))
         request.headers[auth_header] = auth
@@ -47,13 +49,18 @@ class HttpNtlmAuth(AuthBase):
         ServerChallenge, NegotiateFlags = ntlm.parse_NTLM_CHALLENGE_MESSAGE(auth_header_value[5:])
 
         # build response
+        request = copy_request(request)
         auth = 'NTLM %s' % ntlm.create_NTLM_AUTHENTICATE_MESSAGE(ServerChallenge, self.username, self.domain, self.password, NegotiateFlags)
         request.headers[auth_header] = auth
         request.headers["Connection"] = "Close"
 
-        response = self.adapter.send(request, **args)
+        response3 = self.adapter.send(request, **args)
 
-        return response
+        # Update the history.
+        response3.history.append(response)
+        response3.history.append(response2)
+
+        return response3
 
     def response_hook(self, r, **kwargs):
 
@@ -71,3 +78,18 @@ class HttpNtlmAuth(AuthBase):
     def __call__(self, r):
         r.register_hook('response', self.response_hook)
         return r
+
+
+def copy_request(request):
+    """
+    Copies a Requests PreparedRequest.
+    """
+    new_request = PreparedRequest()
+
+    new_request.method = request.method
+    new_request.url = request.url
+    new_request.body = request.body
+    new_request.hooks = request.hooks
+    new_request.headers = request.headers.copy()
+
+    return new_request
