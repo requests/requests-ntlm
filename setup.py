@@ -10,7 +10,7 @@ setup(
     name         = 'requests_ntlm',
     version      = '0.0.2.1',
     packages     = [ 'requests_ntlm' ],
-    requires     = [ 'requests(>=1.0.0)', 'ntlm' ],
+    install_requires = [ 'requests>=1.0.0', 'python-ntlm' ],
     provides     = [ 'requests_ntlm' ],
     author       = 'Ben Toews',
     author_email = 'mastahyeti@gmail.com',
