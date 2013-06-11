@@ -30,6 +30,7 @@ class HttpNtlmAuth(AuthBase):
             return response
 
         request = copy_request(response.request)
+        
 
         # initial auth header with username. will result in challenge
         auth = 'NTLM %s' % ntlm.create_NTLM_NEGOTIATE_MESSAGE("%s\\%s" % (self.domain,self.username))
@@ -38,7 +39,13 @@ class HttpNtlmAuth(AuthBase):
         # we must keep the connection because NTLM authenticates the connection, not single requests
         request.headers["Connection"] = "Keep-Alive"
 
-        response2 = self.adapter.send(request, **args)
+        # A streaming response breaks authentication.
+        # This can be fixed by not streaming this request, which is safe because
+        # the returned response3 will still have stream=True set if specified in
+        # args. In addition, we expect this request to give us a challenge
+        # and not the real content, so the content will be short anyway.
+        args_nostream = dict(args, stream=False)
+        response2 = self.adapter.send(request, **args_nostream)
 
         # this is important for some web applications that store authentication-related info in cookies (it took a long time to figure out)
         if response2.headers.get('set-cookie'):
