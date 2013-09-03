@@ -59,8 +59,7 @@ class HttpNtlmAuth(AuthBase):
         request = copy_request(request)
         auth = 'NTLM %s' % ntlm.create_NTLM_AUTHENTICATE_MESSAGE(ServerChallenge, self.username, self.domain, self.password, NegotiateFlags)
         request.headers[auth_header] = auth
-        request.headers["Connection"] = "Close"
-
+        
         response3 = self.adapter.send(request, **args)
 
         # Update the history.
