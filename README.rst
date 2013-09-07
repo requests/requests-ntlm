@@ -18,10 +18,7 @@ Usage
 Installation
 ------------
 
-The package hasn't been uploaded to pip yet, but it can be installed by 
-running::
-
-    sudo python ./setup.py install
+    pip install requests_ntml
 
 Requirements
 ------------
