@@ -15,9 +15,11 @@ class HttpNtlmAuth(AuthBase):
         if ntlm is None:
             raise Exception("NTLM libraries unavailable")
         #parse the username
-        user_parts = username.split('\\', 1)
-        self.domain = user_parts[0].upper()
-        self.username = user_parts[1]
+        try:
+            self.domain, self.username = username.split('\\', 1)
+        except ValueError:
+            raise ValueError("username should be in 'domain\\username' format.")
+        self.domain = self.domain.upper()
 
         self.password = password
         self.adapter = HTTPAdapter()
