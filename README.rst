@@ -18,7 +18,7 @@ Usage
 Installation
 ------------
 
-    pip install requests_ntml
+    pip install requests_ntlm
 
 Requirements
 ------------
