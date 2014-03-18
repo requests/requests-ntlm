@@ -55,9 +55,8 @@ class HttpNtlmAuth(AuthBase):
 
         # get the challenge
         auth_header_value = response2.headers[auth_header_field]
-        if auth_header_value.endswith', Negotiate'):
-            auth_header_value = auth_header_value[:-11]
-        ServerChallenge, NegotiateFlags = ntlm.parse_NTLM_CHALLENGE_MESSAGE(auth_header_value[5:])
+        ntlm_header_value = filter(lambda s: s.startswith('NTLM '), auth_header_value.split(','))[0]
+        ServerChallenge, NegotiateFlags = ntlm.parse_NTLM_CHALLENGE_MESSAGE(ntlm_header_value[5:])
 
         # build response
         request = copy_request(request)
