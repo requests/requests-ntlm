@@ -49,6 +49,9 @@ class HttpNtlmAuth(AuthBase):
         args_nostream = dict(args, stream=False)
         response2 = self.adapter.send(request, **args_nostream)
 
+        # needed to make NTLM auth compatible with requests-2.3.0
+        response2.content
+
         # this is important for some web applications that store authentication-related info in cookies (it took a long time to figure out)
         if response2.headers.get('set-cookie'):
             request.headers['Cookie'] = response2.headers.get('set-cookie')
