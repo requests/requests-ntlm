@@ -1,3 +1,4 @@
-from .requests_ntlm import HttpNtlmAuth
+from .requests_ntlm import HttpNtlmAuth, SSPIAuth
 
-__all__ = [HttpNtlmAuth]
+__all__ = [HttpNtlmAuth, SSPIAuth]
+ 
