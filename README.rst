@@ -14,6 +14,20 @@ Usage
     from requests_ntlm import HttpNtlmAuth
 
     requests.get("http://ntlm_protected_site.com",auth=HttpNtlmAuth('domain\\username','password'))
+    
+``HttpNtlmAuth`` can be used in conjunction with a ``Session`` in order to
+make use of connection pooling. Since NTLM authenticates connections,
+this is more efficient. Otherwise, each request will go through a new
+NTLM challenge-response.
+
+.. code:: python
+
+    import requests
+    from requests_ntlm import HttpNtlmAuth
+
+    session = requests.Session()
+    session.auth = HttpNtlmAuth('domain\\username','password', session)
+    session.get('http://ntlm_protected_site.com')
 
 Installation
 ------------
@@ -43,3 +57,7 @@ Authors
 - `Cory Benfield`_
 
 .. _Cory Benfield: https://github.com/Lukasa
+
+- `Carson Lam`_
+
+.. _Carson Lam: https://github.com/rbcarson
