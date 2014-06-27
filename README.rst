@@ -57,7 +57,3 @@ Authors
 - `Cory Benfield`_
 
 .. _Cory Benfield: https://github.com/Lukasa
-
-- `Carson Lam`_
-
-.. _Carson Lam: https://github.com/rbcarson
