@@ -2,15 +2,17 @@ from requests.auth import AuthBase
 from requests.adapters import HTTPAdapter
 from requests.models import PreparedRequest
 from ntlm import ntlm
+import weakref
 
 
 class HttpNtlmAuth(AuthBase):
     """HTTP NTLM Authentication Handler for Requests. Supports pass-the-hash."""
 
-    def __init__(self, username, password):
+    def __init__(self, username, password, session=None):
         """
             :username   - Username in 'domain\\username' format
             :password   - Password or hash in "ABCDABCDABCDABCD:ABCDABCDABCDABCD" format.
+            :session    - Optional requests.Session, through which connections are pooled.
         """
         if ntlm is None:
             raise Exception("NTLM libraries unavailable")
@@ -22,7 +24,11 @@ class HttpNtlmAuth(AuthBase):
         self.domain = self.domain.upper()
 
         self.password = password
+
         self.adapter = HTTPAdapter()
+
+        # Keep a weak reference to the Session, if one is in use. This is to avoid a circular reference.
+        self.session = weakref.ref(session) if session else None
 
     def retry_using_http_NTLM_auth(self, auth_header_field, auth_header,
                                    response, args):
@@ -32,14 +38,17 @@ class HttpNtlmAuth(AuthBase):
             return response
 
         request = copy_request(response.request)
-        
+
+        # Pick an adapter to use. If a Session is in use, get the adapter from it.
+        adapter = self.adapter
+        if self.session:
+            session = self.session()
+            if session:
+                adapter = session.get_adapter(response.request.url)
 
         # initial auth header with username. will result in challenge
         auth = 'NTLM %s' % ntlm.create_NTLM_NEGOTIATE_MESSAGE("%s\\%s" % (self.domain,self.username))
         request.headers[auth_header] = auth
-
-        # we must keep the connection because NTLM authenticates the connection, not single requests
-        request.headers["Connection"] = "Keep-Alive"
 
         # A streaming response breaks authentication.
         # This can be fixed by not streaming this request, which is safe because
@@ -47,7 +56,7 @@ class HttpNtlmAuth(AuthBase):
         # args. In addition, we expect this request to give us a challenge
         # and not the real content, so the content will be short anyway.
         args_nostream = dict(args, stream=False)
-        response2 = self.adapter.send(request, **args_nostream)
+        response2 = adapter.send(request, **args_nostream)
 
         # needed to make NTLM auth compatible with requests-2.3.0
         response2.content
@@ -66,7 +75,7 @@ class HttpNtlmAuth(AuthBase):
         auth = 'NTLM %s' % ntlm.create_NTLM_AUTHENTICATE_MESSAGE(ServerChallenge, self.username, self.domain, self.password, NegotiateFlags)
         request.headers[auth_header] = auth
         
-        response3 = self.adapter.send(request, **args)
+        response3 = adapter.send(request, **args)
 
         # Update the history.
         response3.history.append(response)
@@ -88,6 +97,9 @@ class HttpNtlmAuth(AuthBase):
         return r
 
     def __call__(self, r):
+        # we must keep the connection because NTLM authenticates the connection, not single requests
+        r.headers["Connection"] = "Keep-Alive"
+
         r.register_hook('response', self.response_hook)
         return r
 
