@@ -6,40 +6,53 @@ import weakref
 
 
 class HttpNtlmAuth(AuthBase):
-    """HTTP NTLM Authentication Handler for Requests. Supports pass-the-hash."""
+
+    """
+    HTTP NTLM Authentication Handler for Requests.
+
+    Supports pass-the-hash.
+    """
 
     def __init__(self, username, password, session=None):
-        """
-            :username   - Username in 'domain\\username' format
-            :password   - Password or hash in "ABCDABCDABCDABCD:ABCDABCDABCDABCD" format.
-            :session    - Optional requests.Session, through which connections are pooled.
+        r"""Create an authentication handler for NTLM over HTTP.
+
+        :param str username: Username in 'domain\\username' format
+        :param str password: Password or hash in
+            "ABCDABCDABCDABCD:ABCDABCDABCDABCD" format.
+        :param str session: Optional requests.Session, through which
+            connections are pooled.
         """
         if ntlm is None:
             raise Exception("NTLM libraries unavailable")
-        #parse the username
+
+        # parse the username
         try:
             self.domain, self.username = username.split('\\', 1)
         except ValueError:
-            raise ValueError("username should be in 'domain\\username' format.")
+            raise ValueError(
+                "username should be in 'domain\\username' format."
+            )
+
         self.domain = self.domain.upper()
 
         self.password = password
 
         self.adapter = HTTPAdapter()
 
-        # Keep a weak reference to the Session, if one is in use. This is to avoid a circular reference.
+        # Keep a weak reference to the Session, if one is in use.
+        # This is to avoid a circular reference.
         self.session = weakref.ref(session) if session else None
 
     def retry_using_http_NTLM_auth(self, auth_header_field, auth_header,
                                    response, args):
-        """Attempts to authenticate using HTTP NTLM challenge/response"""
-
+        """Attempts to authenticate using HTTP NTLM challenge/response."""
         if auth_header in response.request.headers:
             return response
 
         request = copy_request(response.request)
 
-        # Pick an adapter to use. If a Session is in use, get the adapter from it.
+        # Pick an adapter to use. If a Session is in use, get the adapter
+        # from it.
         adapter = self.adapter
         if self.session:
             session = self.session()
