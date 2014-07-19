@@ -50,8 +50,9 @@ class HttpNtlmAuth(AuthBase):
 
         request = copy_request(response.request)
 
-        # Pick an adapter to use. If a Session is in use, get the adapter
-        # from it.
+        if hasattr(request.data, 'seek'):
+            request.data.seek(0, 0)
+
         adapter = self.adapter
         if self.session:
             session = self.session()
