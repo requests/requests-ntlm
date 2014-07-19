@@ -45,7 +45,7 @@ class HttpNtlmAuth(AuthBase):
 
     def retry_using_http_NTLM_auth(self, auth_header_field, auth_header,
                                    response, args):
-        """Attempts to authenticate using HTTP NTLM challenge/response."""
+        """Attempt to authenticate using HTTP NTLM challenge/response."""
         if auth_header in response.request.headers:
             return response
 
@@ -60,34 +60,46 @@ class HttpNtlmAuth(AuthBase):
                 adapter = session.get_adapter(response.request.url)
 
         # initial auth header with username. will result in challenge
-        auth = 'NTLM %s' % ntlm.create_NTLM_NEGOTIATE_MESSAGE("%s\\%s" % (self.domain,self.username))
+        auth = 'NTLM %s' % ntlm.create_NTLM_NEGOTIATE_MESSAGE(
+            "%s\\%s" % (self.domain, self.username)
+        )
         request.headers[auth_header] = auth
 
         # A streaming response breaks authentication.
-        # This can be fixed by not streaming this request, which is safe because
-        # the returned response3 will still have stream=True set if specified in
-        # args. In addition, we expect this request to give us a challenge
-        # and not the real content, so the content will be short anyway.
+        # This can be fixed by not streaming this request, which is safe
+        # because the returned response3 will still have stream=True set if
+        # specified in args. In addition, we expect this request to give us a
+        # challenge and not the real content, so the content will be short
+        # anyway.
         args_nostream = dict(args, stream=False)
         response2 = adapter.send(request, **args_nostream)
 
         # needed to make NTLM auth compatible with requests-2.3.0
         response2.content
 
-        # this is important for some web applications that store authentication-related info in cookies (it took a long time to figure out)
+        # this is important for some web applications that store
+        # authentication-related info in cookies (it took a long time to
+        # figure out)
         if response2.headers.get('set-cookie'):
             request.headers['Cookie'] = response2.headers.get('set-cookie')
 
         # get the challenge
         auth_header_value = response2.headers[auth_header_field]
-        ntlm_header_value = list(filter(lambda s: s.startswith('NTLM '), auth_header_value.split(',')))[0].strip()
-        ServerChallenge, NegotiateFlags = ntlm.parse_NTLM_CHALLENGE_MESSAGE(ntlm_header_value[5:])
+        ntlm_header_value = list(filter(
+            lambda s: s.startswith('NTLM '), auth_header_value.split(',')
+        ))[0].strip()
+        ServerChallenge, NegotiateFlags = ntlm.parse_NTLM_CHALLENGE_MESSAGE(
+            ntlm_header_value[5:]
+        )
 
         # build response
         request = copy_request(request)
-        auth = 'NTLM %s' % ntlm.create_NTLM_AUTHENTICATE_MESSAGE(ServerChallenge, self.username, self.domain, self.password, NegotiateFlags)
+        auth = 'NTLM %s' % ntlm.create_NTLM_AUTHENTICATE_MESSAGE(
+            ServerChallenge, self.username, self.domain, self.password,
+            NegotiateFlags
+        )
         request.headers[auth_header] = auth
-        
+
         response3 = adapter.send(request, **args)
 
         # Update the history.
