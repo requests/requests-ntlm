@@ -109,12 +109,14 @@ class HttpNtlmAuth(AuthBase):
         return response3
 
     def response_hook(self, r, **kwargs):
-
-        if r.status_code == 401 and 'ntlm' in r.headers.get('www-authenticate','').lower():
+        """The actual hook handler."""
+        www_authenticate = r.headers.get('www-authenticate', '').lower()
+        if r.status_code == 401 and 'ntlm' in www_authenticate:
             return self.retry_using_http_NTLM_auth('www-authenticate',
                                                    'Authorization', r, kwargs)
 
-        if r.status_code == 407 and 'ntlm' in r.headers.get('proxy-authenticate','').lower():
+        proxy_authenticate = r.headers.get('proxy-authenticate', '').lower()
+        if r.status_code == 407 and 'ntlm' in proxy_authenticate:
             return self.retry_using_http_NTLM_auth('proxy-authenticate',
                                                    'Proxy-authorization', r,
                                                    kwargs)
@@ -122,7 +124,8 @@ class HttpNtlmAuth(AuthBase):
         return r
 
     def __call__(self, r):
-        # we must keep the connection because NTLM authenticates the connection, not single requests
+        # we must keep the connection because NTLM authenticates the
+        # connection, not single requests
         r.headers["Connection"] = "Keep-Alive"
 
         r.register_hook('response', self.response_hook)
@@ -130,9 +133,7 @@ class HttpNtlmAuth(AuthBase):
 
 
 def copy_request(request):
-    """
-    Copies a Requests PreparedRequest.
-    """
+    """Copy a Requests PreparedRequest."""
     new_request = PreparedRequest()
 
     new_request.method = request.method
