@@ -30,7 +30,7 @@ class HttpNtlmAuth(AuthBase):
             self.domain, self.username = username.split('\\', 1)
         except ValueError:
             raise ValueError(
-                "username should be in 'domain\\username' format."
+                r"username should be in 'domain\\username' format."
             )
 
         self.domain = self.domain.upper()
