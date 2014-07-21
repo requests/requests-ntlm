@@ -6,7 +6,6 @@ import weakref
 
 
 class HttpNtlmAuth(AuthBase):
-
     """
     HTTP NTLM Authentication Handler for Requests.
 
