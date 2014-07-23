@@ -52,8 +52,11 @@ class HttpNtlmAuth(AuthBase):
 
         content_length = int(request.headers.get('Content-Length', '0'),
                              base=10)
-        if hasattr(request.data, 'seek') and content_length > 0:
-            request.data.seek(-content_length, 1)
+        if hasattr(request.data, 'seek'):
+            if content_length > 0:
+                request.data.seek(-content_length, 1)
+            else:
+                request.data.seek(0, 0)
 
         adapter = self.adapter
         if self.session:
