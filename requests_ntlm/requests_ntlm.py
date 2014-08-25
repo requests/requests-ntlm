@@ -65,9 +65,8 @@ class HttpNtlmAuth(AuthBase):
                 adapter = session.get_adapter(response.request.url)
 
         # initial auth header with username. will result in challenge
-        auth = 'NTLM %s' % ntlm.create_NTLM_NEGOTIATE_MESSAGE(
-            "%s\\%s" % (self.domain, self.username)
-        )
+        msg = "%s\\%s" % (self.domain, self.username) if self.domain else self.username
+        auth = 'NTLM %s' % ntlm.create_NTLM_NEGOTIATE_MESSAGE(msg)
         request.headers[auth_header] = auth
 
         # A streaming response breaks authentication.
