@@ -48,6 +48,7 @@ class HttpNtlmAuth(AuthBase):
         if auth_header in response.request.headers:
             return response
 
+        response.connection.close()
         request = copy_request(response.request)
 
         content_length = int(request.headers.get('Content-Length', '0'),
