@@ -18,8 +18,7 @@ class HttpNtlmAuth(AuthBase):
         :param str username: Username in 'domain\\username' format
         :param str password: Password or hash in
             "ABCDABCDABCDABCD:ABCDABCDABCDABCD" format.
-        :param str session: Optional requests.Session, through which
-            connections are pooled.
+        :param str session: Unused. Kept for backwards-compatibility.
         """
         if ntlm is None:
             raise Exception("NTLM libraries unavailable")
@@ -35,12 +34,6 @@ class HttpNtlmAuth(AuthBase):
         self.domain = self.domain.upper()
 
         self.password = password
-
-        self.adapter = HTTPAdapter()
-
-        # Keep a weak reference to the Session, if one is in use.
-        # This is to avoid a circular reference.
-        self.session = weakref.ref(session) if session else None
 
     def retry_using_http_NTLM_auth(self, auth_header_field, auth_header,
                                    response, args):
