@@ -58,12 +58,12 @@ class HttpNtlmAuth(AuthBase):
             else:
                 request.body.seek(0, 0)
 
-        adapter = self.adapter
-        if self.session:
-            session = self.session()
-            if session:
-                adapter = session.get_adapter(response.request.url)
-
+        # Recycle the connection pool from the initial request for future requests so we 
+        # don't leak sockets, or waste another connection if this is a session. We need 
+        # to at least taste data on the socket to be able to reuse it.
+        adapter = response.connection
+        response.raw.read(1)
+        
         # initial auth header with username. will result in challenge
         msg = "%s\\%s" % (self.domain, self.username) if self.domain else self.username
         auth = 'NTLM %s' % ntlm.create_NTLM_NEGOTIATE_MESSAGE(msg)
