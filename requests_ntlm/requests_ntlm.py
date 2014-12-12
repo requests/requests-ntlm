@@ -18,8 +18,7 @@ class HttpNtlmAuth(AuthBase):
         :param str username: Username in 'domain\\username' format
         :param str password: Password or hash in
             "ABCDABCDABCDABCD:ABCDABCDABCDABCD" format.
-        :param str session: Optional requests.Session, through which
-            connections are pooled.
+        :param str session: Unused. Kept for backwards-compatibility.
         """
         if ntlm is None:
             raise Exception("NTLM libraries unavailable")
@@ -36,19 +35,13 @@ class HttpNtlmAuth(AuthBase):
 
         self.password = password
 
-        self.adapter = HTTPAdapter()
-
-        # Keep a weak reference to the Session, if one is in use.
-        # This is to avoid a circular reference.
-        self.session = weakref.ref(session) if session else None
-
     def retry_using_http_NTLM_auth(self, auth_header_field, auth_header,
                                    response, args):
         """Attempt to authenticate using HTTP NTLM challenge/response."""
         if auth_header in response.request.headers:
             return response
 
-        request = copy_request(response.request)
+        request = response.request.copy()
 
         content_length = int(request.headers.get('Content-Length', '0'),
                              base=10)
@@ -58,11 +51,12 @@ class HttpNtlmAuth(AuthBase):
             else:
                 request.body.seek(0, 0)
 
-        adapter = self.adapter
-        if self.session:
-            session = self.session()
-            if session:
-                adapter = session.get_adapter(response.request.url)
+        # Recycle the connection pool from the initial request for future requests so we 
+        # don't leak sockets, or waste another connection if this is a session. All data on
+        # the socket must be read before the socket is re-useable. Volume should be small 
+        # since this is an HTTP 401 response.
+        adapter = response.connection
+        response.text
 
         # initial auth header with username. will result in challenge
         msg = "%s\\%s" % (self.domain, self.username) if self.domain else self.username
@@ -97,7 +91,7 @@ class HttpNtlmAuth(AuthBase):
         )
 
         # build response
-        request = copy_request(request)
+        request = request.copy()
         auth = 'NTLM %s' % ntlm.create_NTLM_AUTHENTICATE_MESSAGE(
             ServerChallenge, self.username, self.domain, self.password,
             NegotiateFlags
@@ -134,16 +128,3 @@ class HttpNtlmAuth(AuthBase):
 
         r.register_hook('response', self.response_hook)
         return r
-
-
-def copy_request(request):
-    """Copy a Requests PreparedRequest."""
-    new_request = PreparedRequest()
-
-    new_request.method = request.method
-    new_request.url = request.url
-    new_request.body = request.body
-    new_request.hooks = request.hooks
-    new_request.headers = request.headers.copy()
-
-    return new_request
