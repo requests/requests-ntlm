@@ -1,7 +1,7 @@
 from requests.auth import AuthBase
 from requests.adapters import HTTPAdapter
 from requests.models import PreparedRequest
-from ntlm import ntlm
+from ntlm3 import ntlm
 import weakref
 
 
