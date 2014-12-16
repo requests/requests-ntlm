@@ -101,7 +101,7 @@ class HttpNtlmAuth(AuthBase):
 
         # build response
         request = copy_request(request)
-        
+
         # ntlm returns the headers as a base64 encoded bytestring. Convert to a string.
         auth = 'NTLM %s' % ntlm.create_NTLM_AUTHENTICATE_MESSAGE(
             ServerChallenge, self.username, self.domain, self.password,

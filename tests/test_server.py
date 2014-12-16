@@ -1,13 +1,13 @@
 from flask import Flask,request
-from ntlm import ntlm
+from ntlm3 import ntlm
 app = Flask(__name__)
 
-REQUEST_2 = 'NTLM %s' % ntlm.create_NTLM_NEGOTIATE_MESSAGE("domain\\username")
+REQUEST_2 = 'NTLM %s' % ntlm.create_NTLM_NEGOTIATE_MESSAGE("domain\\username").decode('ascii')
 
 RESPONSE_2 = 'NTLM TlRMTVNTUAACAAAADAAMADAAAAAHAgMAESIzRFVmd4gAAAAAAAAAAGIAYgA8AAAARABPAE0AQQBJAE4AAgAMAEQATwBNAEEASQBOAAEADABTAEUAUgBWAEUAUgAEABYAZQB4AGEAbQBwAGwAZQAuAGMAbwBtAAMAJABTAEUAUgBWAEUAUgAuAGUAeABhAG0AcABsAGUALgBjAG8AbQAAAAAA'
 ServerChallenge, NegotiateFlags = ntlm.parse_NTLM_CHALLENGE_MESSAGE(RESPONSE_2[5:])
 
-REQUEST_3 = 'NTLM %s' % ntlm.create_NTLM_AUTHENTICATE_MESSAGE(ServerChallenge, 'username', 'domain', 'password', NegotiateFlags)
+REQUEST_3 = 'NTLM %s' % ntlm.create_NTLM_AUTHENTICATE_MESSAGE(ServerChallenge, 'username', 'domain', 'password', NegotiateFlags).decode('ascii')
 
 @app.route("/")
 def ntlm_auth():
