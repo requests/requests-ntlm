@@ -7,7 +7,7 @@ setup(
     name='requests_ntlm',
     version='0.0.3',
     packages=[ 'requests_ntlm' ],
-    install_requires=[ 'requests>=1.0.0', 'python-ntlm' ],
+    install_requires=[ 'requests>=1.0.0', 'python-ntlm3' ],
     provides=[ 'requests_ntlm' ],
     author='Ben Toews',
     author_email='mastahyeti@gmail.com',

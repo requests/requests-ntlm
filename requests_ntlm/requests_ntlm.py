@@ -1,7 +1,7 @@
 from requests.auth import AuthBase
 from requests.adapters import HTTPAdapter
 from requests.models import PreparedRequest
-from ntlm import ntlm
+from ntlm3 import ntlm
 import weakref
 
 
@@ -66,7 +66,9 @@ class HttpNtlmAuth(AuthBase):
 
         # initial auth header with username. will result in challenge
         msg = "%s\\%s" % (self.domain, self.username) if self.domain else self.username
-        auth = 'NTLM %s' % ntlm.create_NTLM_NEGOTIATE_MESSAGE(msg)
+
+        # ntlm returns the headers as a base64 encoded bytestring. Convert to a string.
+        auth = 'NTLM %s' % ntlm.create_NTLM_NEGOTIATE_MESSAGE(msg).decode('ascii')
         request.headers[auth_header] = auth
 
         # A streaming response breaks authentication.
@@ -89,6 +91,7 @@ class HttpNtlmAuth(AuthBase):
 
         # get the challenge
         auth_header_value = response2.headers[auth_header_field]
+
         ntlm_header_value = list(filter(
             lambda s: s.startswith('NTLM '), auth_header_value.split(',')
         ))[0].strip()
@@ -98,10 +101,12 @@ class HttpNtlmAuth(AuthBase):
 
         # build response
         request = copy_request(request)
+
+        # ntlm returns the headers as a base64 encoded bytestring. Convert to a string.
         auth = 'NTLM %s' % ntlm.create_NTLM_AUTHENTICATE_MESSAGE(
             ServerChallenge, self.username, self.domain, self.password,
             NegotiateFlags
-        )
+        ).decode('ascii')
         request.headers[auth_header] = auth
 
         response3 = adapter.send(request, **args)
