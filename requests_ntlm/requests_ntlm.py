@@ -18,8 +18,7 @@ class HttpNtlmAuth(AuthBase):
         :param str username: Username in 'domain\\username' format
         :param str password: Password or hash in
             "ABCDABCDABCDABCD:ABCDABCDABCDABCD" format.
-        :param str session: Optional requests.Session, through which
-            connections are pooled.
+        :param str session: Unused. Kept for backwards-compatibility.
         """
         if ntlm is None:
             raise Exception("NTLM libraries unavailable")
@@ -36,33 +35,25 @@ class HttpNtlmAuth(AuthBase):
 
         self.password = password
 
-        self.adapter = HTTPAdapter()
-
-        # Keep a weak reference to the Session, if one is in use.
-        # This is to avoid a circular reference.
-        self.session = weakref.ref(session) if session else None
-
     def retry_using_http_NTLM_auth(self, auth_header_field, auth_header,
                                    response, args):
         """Attempt to authenticate using HTTP NTLM challenge/response."""
         if auth_header in response.request.headers:
             return response
 
-        request = copy_request(response.request)
-
-        content_length = int(request.headers.get('Content-Length', '0'),
+        content_length = int(response.request.headers.get('Content-Length', '0'),
                              base=10)
-        if hasattr(request.body, 'seek'):
+        if hasattr(response.request.body, 'seek'):
             if content_length > 0:
-                request.body.seek(-content_length, 1)
+                response.request.body.seek(-content_length, 1)
             else:
-                request.body.seek(0, 0)
+                response.request.body.seek(0, 0)
 
-        adapter = self.adapter
-        if self.session:
-            session = self.session()
-            if session:
-                adapter = session.get_adapter(response.request.url)
+        # Consume content and release the original connection
+        # to allow our new request to reuse the same one.
+        response.content
+        response.raw.release_conn()
+        request = response.request.copy()
 
         # initial auth header with username. will result in challenge
         msg = "%s\\%s" % (self.domain, self.username) if self.domain else self.username
@@ -78,10 +69,15 @@ class HttpNtlmAuth(AuthBase):
         # challenge and not the real content, so the content will be short
         # anyway.
         args_nostream = dict(args, stream=False)
-        response2 = adapter.send(request, **args_nostream)
+        response2 = response.connection.send(request, **args_nostream)
 
         # needed to make NTLM auth compatible with requests-2.3.0
+
+        # Consume content and release the original connection
+        # to allow our new request to reuse the same one.
         response2.content
+        response2.raw.release_conn()
+        request = response2.request.copy()
 
         # this is important for some web applications that store
         # authentication-related info in cookies (it took a long time to
@@ -100,7 +96,6 @@ class HttpNtlmAuth(AuthBase):
         )
 
         # build response
-        request = copy_request(request)
 
         # ntlm returns the headers as a base64 encoded bytestring. Convert to a string.
         auth = 'NTLM %s' % ntlm.create_NTLM_AUTHENTICATE_MESSAGE(
@@ -109,7 +104,7 @@ class HttpNtlmAuth(AuthBase):
         ).decode('ascii')
         request.headers[auth_header] = auth
 
-        response3 = adapter.send(request, **args)
+        response3 = response2.connection.send(request, **args)
 
         # Update the history.
         response3.history.append(response)
@@ -141,14 +136,3 @@ class HttpNtlmAuth(AuthBase):
         return r
 
 
-def copy_request(request):
-    """Copy a Requests PreparedRequest."""
-    new_request = PreparedRequest()
-
-    new_request.method = request.method
-    new_request.url = request.url
-    new_request.body = request.body
-    new_request.hooks = request.hooks
-    new_request.headers = request.headers.copy()
-
-    return new_request
