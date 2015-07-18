@@ -1,8 +1,5 @@
 from requests.auth import AuthBase
-from requests.adapters import HTTPAdapter
-from requests.models import PreparedRequest
 from ntlm3 import ntlm
-import weakref
 
 
 class HttpNtlmAuth(AuthBase):
@@ -41,8 +38,8 @@ class HttpNtlmAuth(AuthBase):
         if auth_header in response.request.headers:
             return response
 
-        content_length = int(response.request.headers.get('Content-Length', '0'),
-                             base=10)
+        content_length = int(
+            response.request.headers.get('Content-Length', '0'), base=10)
         if hasattr(response.request.body, 'seek'):
             if content_length > 0:
                 response.request.body.seek(-content_length, 1)
@@ -58,7 +55,8 @@ class HttpNtlmAuth(AuthBase):
         # initial auth header with username. will result in challenge
         msg = "%s\\%s" % (self.domain, self.username) if self.domain else self.username
 
-        # ntlm returns the headers as a base64 encoded bytestring. Convert to a string.
+        # ntlm returns the headers as a base64 encoded bytestring. Convert to
+        # a string.
         auth = 'NTLM %s' % ntlm.create_NTLM_NEGOTIATE_MESSAGE(msg).decode('ascii')
         request.headers[auth_header] = auth
 
@@ -97,7 +95,8 @@ class HttpNtlmAuth(AuthBase):
 
         # build response
 
-        # ntlm returns the headers as a base64 encoded bytestring. Convert to a string.
+        # ntlm returns the headers as a base64 encoded bytestring. Convert to a
+        # string.
         auth = 'NTLM %s' % ntlm.create_NTLM_AUTHENTICATE_MESSAGE(
             ServerChallenge, self.username, self.domain, self.password,
             NegotiateFlags
@@ -134,5 +133,3 @@ class HttpNtlmAuth(AuthBase):
 
         r.register_hook('response', self.response_hook)
         return r
-
-
