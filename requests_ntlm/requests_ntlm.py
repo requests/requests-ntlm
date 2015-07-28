@@ -90,7 +90,7 @@ class HttpNtlmAuth(AuthBase):
             lambda s: s.startswith('NTLM '), auth_header_value.split(',')
         ))[0].strip()
         ServerChallenge, NegotiateFlags = ntlm.parse_NTLM_CHALLENGE_MESSAGE(
-            ntlm_header_value[5:]
+            bytes(ntlm_header_value[5:], 'ascii')
         )
 
         # build response
