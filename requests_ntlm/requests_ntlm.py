@@ -24,16 +24,18 @@ class HttpNtlmAuth(AuthBase):
         try:
             self.domain, self.username = username.split('\\', 1)
         except ValueError:
-            raise ValueError(
-                r"username should be in 'domain\\username' format."
-            )
+            try:
+                self.username, self.domain = username.split('@', 1)
+            except ValueError:
+                self.username = username
+                self.domain = '.'
 
         self.domain = self.domain.upper()
 
         self.password = password
 
     def retry_using_http_NTLM_auth(self, auth_header_field, auth_header,
-                                   response, args):
+                                   response, auth_type, args):
         """Attempt to authenticate using HTTP NTLM challenge/response."""
         if auth_header in response.request.headers:
             return response
@@ -57,7 +59,7 @@ class HttpNtlmAuth(AuthBase):
 
         # ntlm returns the headers as a base64 encoded bytestring. Convert to
         # a string.
-        auth = 'NTLM %s' % ntlm.create_NTLM_NEGOTIATE_MESSAGE(msg).decode('ascii')
+        auth = '%s %s' % (auth_type, ntlm.create_NTLM_NEGOTIATE_MESSAGE(msg).decode('ascii'))
         request.headers[auth_header] = auth
 
         # A streaming response breaks authentication.
@@ -86,22 +88,25 @@ class HttpNtlmAuth(AuthBase):
         # get the challenge
         auth_header_value = response2.headers[auth_header_field]
 
-        ntlm_header_value = [
+        auth_strip = auth_type + ' '
+
+        ntlm_header_value = next(
             s for s in (val.lstrip() for val in auth_header_value.split(','))
-            if s.startswith('NTLM ')
-        ][0].strip()
+            if s.startswith(auth_strip)
+        ).strip()
+
         ServerChallenge, NegotiateFlags = ntlm.parse_NTLM_CHALLENGE_MESSAGE(
-            ntlm_header_value[5:]
+            ntlm_header_value[len(auth_strip):]
         )
 
         # build response
 
         # ntlm returns the headers as a base64 encoded bytestring. Convert to a
         # string.
-        auth = 'NTLM %s' % ntlm.create_NTLM_AUTHENTICATE_MESSAGE(
+        auth = '%s %s' % (auth_type, ntlm.create_NTLM_AUTHENTICATE_MESSAGE(
             ServerChallenge, self.username, self.domain, self.password,
             NegotiateFlags
-        ).decode('ascii')
+        ).decode('ascii'))
         request.headers[auth_header] = auth
 
         response3 = response2.connection.send(request, **args)
@@ -115,9 +120,14 @@ class HttpNtlmAuth(AuthBase):
     def response_hook(self, r, **kwargs):
         """The actual hook handler."""
         www_authenticate = r.headers.get('www-authenticate', '').lower()
-        if r.status_code == 401 and 'ntlm' in www_authenticate:
+        if r.status_code == 401:
+            # prefer NTLM over Negotiate if the server supports it...
+            if 'ntlm' in www_authenticate:
+                auth_type = 'NTLM'
+            elif 'negotiate' in www_authenticate:
+                auth_type = 'Negotiate'
             return self.retry_using_http_NTLM_auth('www-authenticate',
-                                                   'Authorization', r, kwargs)
+                                                   'Authorization', r, auth_type, kwargs)
 
         proxy_authenticate = r.headers.get('proxy-authenticate', '').lower()
         if r.status_code == 407 and 'ntlm' in proxy_authenticate:
