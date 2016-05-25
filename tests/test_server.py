@@ -23,6 +23,30 @@ def negotiate_auth():
 def negotiate_and_ntlm_auth():
     return get_auth_response('NTLM', advertise_nego_and_ntlm=True)
 
+@app.route("/basic")
+def basic_auth():
+    return get_auth_response('Basic')
+
+@app.route("/proxy_negotiate")
+def proxy_negotiate_auth():
+    auth_type = 'Negotiate'
+    response_headers = {'Proxy-Authenticate': auth_type}
+    status_code = 407
+    response = "proxy authenticate"
+
+    # 2nd request
+    if request.headers.get('Proxy-Authorization', '') == REQUEST_2_TEMPLATE.format(auth_type):
+        response_headers = {'Proxy-Authenticate': RESPONSE_2_TEMPLATE.format(auth_type)}
+        status_code = 407
+
+    # 3rd request
+    elif request.headers.get('Proxy-Authorization', '') == REQUEST_3_TEMPLATE.format(auth_type):
+        response_headers = {}
+        status_code = 200
+        response = "authed"
+
+    return response, status_code, response_headers
+
 def get_auth_response(auth_type, advertise_nego_and_ntlm=False):
     response_headers = {'WWW-Authenticate':auth_type if not advertise_nego_and_ntlm else 'Negotiate, NTLM'}
     status_code = 401

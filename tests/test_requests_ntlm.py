@@ -1,7 +1,7 @@
 import unittest
 import requests
 import requests_ntlm
-import test_server
+
 
 class TestRequestsNtlm(unittest.TestCase):
 
@@ -37,6 +37,18 @@ class TestRequestsNtlm(unittest.TestCase):
 
             self.assertTrue(res.history[0].request is not res.history[1].request)
             self.assertTrue(res.history[0].request is not res.request)
+
+    def test_unrecognized_authenticate_header(self):
+        res = requests.get(url=self.test_server_url + 'basic',
+                           auth=requests_ntlm.HttpNtlmAuth(self.test_server_username,
+                                                           self.test_server_password))
+        self.assertEquals(res.status_code, 401)
+
+    def test_proxy_authenticate(self):
+        res = requests.get(url=self.test_server_url + 'proxy_negotiate',
+                           auth=requests_ntlm.HttpNtlmAuth(self.test_server_username,
+                                                           self.test_server_password))
+        self.assertEquals(res.status_code, 200)
 
 if __name__ == '__main__':
     unittest.main()
