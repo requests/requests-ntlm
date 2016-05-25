@@ -119,23 +119,38 @@ class HttpNtlmAuth(AuthBase):
 
     def response_hook(self, r, **kwargs):
         """The actual hook handler."""
-        www_authenticate = r.headers.get('www-authenticate', '').lower()
         if r.status_code == 401:
-            # prefer NTLM over Negotiate if the server supports it...
-            if 'ntlm' in www_authenticate:
-                auth_type = 'NTLM'
-            elif 'negotiate' in www_authenticate:
-                auth_type = 'Negotiate'
+            auth_type = self.pick_auth_type(r.headers.get('www-authenticate'))
             return self.retry_using_http_NTLM_auth('www-authenticate',
-                                                   'Authorization', r, auth_type, kwargs)
+                                                   'Authorization', r,
+                                                   auth_type, kwargs)
 
-        proxy_authenticate = r.headers.get('proxy-authenticate', '').lower()
-        if r.status_code == 407 and 'ntlm' in proxy_authenticate:
+        if r.status_code == 407:
+            auth_type = self.pick_auth_type(r.headers.get('proxy-authenticate'))
             return self.retry_using_http_NTLM_auth('proxy-authenticate',
                                                    'Proxy-authorization', r,
-                                                   kwargs)
+                                                   auth_type, kwargs)
 
         return r
+
+    @staticmethod
+    def pick_auth_type(authenticate_header):
+        """
+        :param str|None authenticate_header: Value of the www/proxy-authenticate header.
+        :return: 'NTLM' if present in authenticate_header, header value is Falsy,
+            or header value doesn't have a recognized keyword.
+            Otherwise, 'Negotiate' if present in authenticate_header.
+        :rtype: str
+        """
+        if not authenticate_header:
+            return 'NTLM'
+        authenticate_header = authenticate_header.lower()
+        # prefer NTLM over Negotiate if the server supports it...
+        if 'ntlm' in authenticate_header:
+            return 'NTLM'
+        if 'negotiate' in authenticate_header:
+            return 'Negotiate'
+        return 'NTLM'
 
     def __call__(self, r):
         # we must keep the connection because NTLM authenticates the
