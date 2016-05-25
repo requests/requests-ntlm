@@ -121,12 +121,16 @@ class HttpNtlmAuth(AuthBase):
         """The actual hook handler."""
         if r.status_code == 401:
             auth_type = self.pick_auth_type(r.headers.get('www-authenticate'))
+            if not auth_type:
+                return r
             return self.retry_using_http_NTLM_auth('www-authenticate',
                                                    'Authorization', r,
                                                    auth_type, kwargs)
 
         if r.status_code == 407:
             auth_type = self.pick_auth_type(r.headers.get('proxy-authenticate'))
+            if not auth_type:
+                return r
             return self.retry_using_http_NTLM_auth('proxy-authenticate',
                                                    'Proxy-authorization', r,
                                                    auth_type, kwargs)
@@ -137,20 +141,19 @@ class HttpNtlmAuth(AuthBase):
     def pick_auth_type(authenticate_header):
         """
         :param str|None authenticate_header: Value of the www/proxy-authenticate header.
-        :return: 'NTLM' if present in authenticate_header, header value is Falsy,
-            or header value doesn't have a recognized keyword.
-            Otherwise, 'Negotiate' if present in authenticate_header.
-        :rtype: str
+        :return: 'NTLM' if present in authenticate_header. Otherwise, 'Negotiate' if present in authenticate_header.
+            `None` if neither value is present.
+        :rtype: str|None
         """
         if not authenticate_header:
-            return 'NTLM'
+            return None
         authenticate_header = authenticate_header.lower()
         # prefer NTLM over Negotiate if the server supports it...
         if 'ntlm' in authenticate_header:
             return 'NTLM'
         if 'negotiate' in authenticate_header:
             return 'Negotiate'
-        return 'NTLM'
+        return None
 
     def __call__(self, r):
         # we must keep the connection because NTLM authenticates the
