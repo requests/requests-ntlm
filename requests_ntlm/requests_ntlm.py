@@ -119,21 +119,33 @@ class HttpNtlmAuth(AuthBase):
 
     def response_hook(self, r, **kwargs):
         """The actual hook handler."""
-        www_authenticate = r.headers.get('www-authenticate', '').lower()
         if r.status_code == 401:
-            # prefer NTLM over Negotiate if the server supports it...
-            if 'ntlm' in www_authenticate:
-                auth_type = 'NTLM'
-            elif 'negotiate' in www_authenticate:
-                auth_type = 'Negotiate'
-            return self.retry_using_http_NTLM_auth('www-authenticate',
-                                                   'Authorization', r, auth_type, kwargs)
+            # Handle server auth.
+            www_authenticate = r.headers.get('www-authenticate', '').lower()
+            auth_type = _auth_type_from_header(www_authenticate)
 
-        proxy_authenticate = r.headers.get('proxy-authenticate', '').lower()
-        if r.status_code == 407 and 'ntlm' in proxy_authenticate:
-            return self.retry_using_http_NTLM_auth('proxy-authenticate',
-                                                   'Proxy-authorization', r,
-                                                   kwargs)
+            if auth_type is not None:
+                return self.retry_using_http_NTLM_auth(
+                    'www-authenticate',
+                    'Authorization',
+                    r,
+                    auth_type,
+                    kwargs
+                )
+        elif r.status_code == 407:
+            # If we didn't have server auth, do proxy auth.
+            proxy_authenticate = r.headers.get(
+                'proxy-authenticate', ''
+            ).lower()
+            auth_type = _auth_type_from_header(proxy_authenticate)
+            if auth_type is not None:
+                return self.retry_using_http_NTLM_auth(
+                    'proxy-authenticate',
+                    'Proxy-authorization',
+                    r,
+                    auth_type,
+                    kwargs
+                )
 
         return r
 
@@ -144,3 +156,18 @@ class HttpNtlmAuth(AuthBase):
 
         r.register_hook('response', self.response_hook)
         return r
+
+
+
+def _auth_type_from_header(header):
+    """
+    Given a WWW-Authenticate or Proxy-Authenticate header, returns the
+    authentication type to use. We prefer NTLM over Negotiate if the server
+    suppports it.
+    """
+    if 'ntlm' in header:
+        return 'NTLM'
+    elif 'negotiate' in header:
+        return 'Negotiate'
+
+    return None
