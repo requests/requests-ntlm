@@ -55,6 +55,3 @@ def send_request(url, username, password):
     response = session.send(prepared_request)
 
     return response
-
-if __name__ == '__main__':
-    unittest.main()

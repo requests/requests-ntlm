@@ -3,6 +3,7 @@ import mock
 from flask import Flask,request
 from ntlm_auth import ntlm
 from utils import *
+
 app = Flask(__name__)
 
 @app.route("/ntlm")
