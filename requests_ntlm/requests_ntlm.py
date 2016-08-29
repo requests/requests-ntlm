@@ -153,7 +153,7 @@ class HttpNtlmAuth(AuthBase):
 def _get_server_cert(request_url):
     """
     Get the certificate at the request_url and return it as a SHA256 hash. Will check the endpoint if it
-    is a https site and use the default port 443 is it isn't explicity specified in the URL. Used to send
+    is a https site and use the default port 443 is it isn't explicitly specified in the URL. Used to send
     in with NTLMv2 authentication for Channel Binding Tokens
 
     :param request_url: The request url in the format https://endpoint:port/path
