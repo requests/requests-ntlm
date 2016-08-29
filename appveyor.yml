@@ -77,7 +77,7 @@ install:
   # compiled extensions and are not provided as pre-built wheel packages,
   # pip will build them from source using the MSVC compiler matching the
   # target Python version and architecture
-  - "%CMD_IN_ENV% pip install -r requirements-dev.txt"
+  - "%CMD_IN_ENV% pip install -r requirements.txt"
 
 build: false
 
@@ -85,13 +85,14 @@ before_test:
   # Sets up 2 IIS sites to use in the integration tests only run on windows.
   # This will actually test out NTLM authentication with a real client and not just documentation examples
   - PowerShell appveyor\setup_iis.ps1
+  - PowerShell Start-Job -Name "Flask-Server" -ScriptBlock { python tests\test_server.py }
 
 test_script:
   # Run the project tests
-  - "%CMD_IN_ENV% python tests/test_server.py"
   - "%CMD_IN_ENV% py.test tests"
 
 after_test:
+  - PowerShell Stop-Job -Name "Flask-Server"
   - "%CMD_IN_ENV% python setup.py bdist_wheel bdist_wininst"
   - ps: "ls dist"
 

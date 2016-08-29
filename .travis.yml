@@ -13,10 +13,13 @@ install:
   - pip install -r requirements.txt
   - pip install python-coveralls
 
+# start the Flask server for our tests
+before_script:
+  - python tests/test_server.py &
+
 # command to run tests
 script:
-  - python tests/test_server.py
-  - py.test --ignore=tests/test_functional.py --cov requests_ntlm --cov-report term-missing tests
+  - py.test --ignore=tests/test_functional.py --ignore=tests/test_server.py --cov requests_ntlm --cov-report term-missing tests
 
 after_success:
   - coveralls
