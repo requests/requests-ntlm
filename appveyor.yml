@@ -85,7 +85,10 @@ before_test:
   # Sets up 2 IIS sites to use in the integration tests only run on windows.
   # This will actually test out NTLM authentication with a real client and not just documentation examples
   - PowerShell appveyor\setup_iis.ps1
+  # Start up the Flask test instance for the tests
   - PowerShell Start-Job -Name "Flask-Server" -ScriptBlock { python tests\test_server.py }
+  # Wait until the Flask test instance is up and running
+  - do { sleep 3 } until(Test-NetConnection 127.0.0.1 -Port 5000 | ? { $_.TcpTestSucceeded } )
 
 test_script:
   # Run the project tests
