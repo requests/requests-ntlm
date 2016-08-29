@@ -4,3 +4,4 @@ requests
 ntlm-auth
 flask
 mock
+wheel
