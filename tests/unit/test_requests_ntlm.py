@@ -1,14 +1,15 @@
 import unittest
 import requests
 import requests_ntlm
-import tests.test_server
+
+from tests.test_utils import *
 
 class TestRequestsNtlm(unittest.TestCase):
 
     def setUp(self):
         self.test_server_url        = 'http://localhost:5000/'
-        self.test_server_username   = 'domain\\username'
-        self.test_server_password   = 'password'
+        self.test_server_username   = domain + "\\" + username
+        self.test_server_password   = password
         self.auth_types = ['ntlm','negotiate','both']
 
     def test_requests_ntlm(self):
