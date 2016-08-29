@@ -1,3 +1,5 @@
 requests
 python-ntlm3
 flask
+pytest
+pytest-cov

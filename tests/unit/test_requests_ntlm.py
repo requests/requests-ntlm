@@ -1,7 +1,7 @@
 import unittest
 import requests
 import requests_ntlm
-import test_server
+import tests.test_server
 
 class TestRequestsNtlm(unittest.TestCase):
 
@@ -37,6 +37,45 @@ class TestRequestsNtlm(unittest.TestCase):
 
             self.assertTrue(res.history[0].request is not res.history[1].request)
             self.assertTrue(res.history[0].request is not res.request)
+
+    def test_username_parse_backslash(self):
+        test_user = 'domain\\user'
+        expected_domain = 'DOMAIN'
+        expected_user = 'user'
+
+        context = requests_ntlm.HttpNtlmAuth(test_user, 'pass')
+
+        actual_domain = context.domain
+        actual_user = context.username
+
+        assert actual_domain == expected_domain
+        assert actual_user == expected_user
+
+    def test_username_parse_at(self):
+        test_user = 'user@domain'
+        expected_domain = 'DOMAIN'
+        expected_user = 'user'
+
+        context = requests_ntlm.HttpNtlmAuth(test_user, 'pass')
+
+        actual_domain = context.domain
+        actual_user = context.username
+
+        assert actual_domain == expected_domain
+        assert actual_user == expected_user
+
+    def test_username_parse_no_domain(self):
+        test_user = 'user'
+        expected_domain = '.'
+        expected_user = 'user'
+
+        context = requests_ntlm.HttpNtlmAuth(test_user, 'pass')
+
+        actual_domain = context.domain
+        actual_user = context.username
+
+        assert actual_domain == expected_domain
+        assert actual_user == expected_user
 
 if __name__ == '__main__':
     unittest.main()
