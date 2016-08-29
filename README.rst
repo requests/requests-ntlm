@@ -1,6 +1,15 @@
 requests-ntlm
 =============
 
+.. image:: https://travis-ci.org/jborean93/requests-ntlm.svg?branch=master
+    :target: https://travis-ci.org/jborean93/requests-ntlm
+
+.. image:: https://ci.appveyor.com/api/projects/status/stkl2dxwdhph3rju/branch/master?svg=true
+    :target: https://ci.appveyor.com/project/jborean93/requests-ntlm
+
+.. image:: https://coveralls.io/repos/github/jborean93/requests-ntlm/badge.svg?branch=master
+    :target: https://coveralls.io/github/jborean93/requests-ntlm?branch=master
+
 This package allows for HTTP NTLM authentication using the requests library.
 
 Usage
@@ -38,10 +47,10 @@ Requirements
 ------------
 
 - requests_
-- python-ntlm3_
+- ntlm-auth_
 
 .. _requests: https://github.com/kennethreitz/requests/
-.. _python-ntlm3: https://github.com/trustrachel/python-ntlm3
+.. _ntlm-auth: https://github.com/jborean93/ntlm-auth
 
 Authors
 -------

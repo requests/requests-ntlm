@@ -1,3 +1,7 @@
+pytest
+pytest-cov
 requests
-python-ntlm3
+ntlm-auth
 flask
+mock
+wheel
