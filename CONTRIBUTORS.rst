@@ -5,6 +5,6 @@ Contributors
 
 .. _Carson Lam: https://github.com/rbcarson
 
-- `Jordan Boren`_
+- `Jordan Borean`_
 
-.. _Jordan_Brean: https://github.com/jborean93
+.. _Jordan Borean: https://github.com/jborean93
