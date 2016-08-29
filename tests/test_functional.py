@@ -1,7 +1,6 @@
 import requests
 import unittest
-
-from requests_ntlm import requests_ntlm
+import requests_ntlm
 
 username = '.\\User'
 password = 'Password01'
