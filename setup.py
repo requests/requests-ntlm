@@ -7,7 +7,7 @@ setup(
     name='requests_ntlm',
     version='0.3.0',
     packages=[ 'requests_ntlm' ],
-    install_requires=[ 'requests>=2.0.0', 'python-ntlm3' ],
+    install_requires=[ 'requests>=2.0.0', 'ntlm-auth' ],
     provides=[ 'requests_ntlm' ],
     author='Ben Toews',
     author_email='mastahyeti@gmail.com',
@@ -24,6 +24,7 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
         'License :: OSI Approved :: ISC License (ISCL)',
     ],
 )

@@ -38,10 +38,10 @@ Requirements
 ------------
 
 - requests_
-- python-ntlm3_
+- ntlm-auth_
 
 .. _requests: https://github.com/kennethreitz/requests/
-.. _python-ntlm3: https://github.com/trustrachel/python-ntlm3
+.. _ntlm-auth: https://github.com/jborean93/ntlm-auth
 
 Authors
 -------
