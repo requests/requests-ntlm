@@ -2,7 +2,7 @@ import mock
 
 from flask import Flask,request
 from ntlm_auth import ntlm
-from .utils import *
+from tests.utils import *
 
 app = Flask(__name__)
 

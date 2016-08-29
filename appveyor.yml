@@ -83,7 +83,7 @@ build: false
 
 before_test:
   # Start up the Flask test instance for the tests
-  - PowerShell Start-Process -FilePath "python.exe" -ArgumentList "tests\test_server.py"
+  - PowerShell Start-Process -FilePath "python.exe" -ArgumentList "-m tests.test_server"
   # Sets up 2 IIS sites to use in the integration tests only run on windows.
   # This will actually test out NTLM authentication with a real client and not just documentation examples
   - PowerShell appveyor\setup_iis.ps1

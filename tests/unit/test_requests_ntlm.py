@@ -3,7 +3,7 @@ import requests
 import requests_ntlm
 import mock
 
-from ..utils import *
+from tests.utils import *
 
 """
 In these tests we need to mock out the 4 different methods to ensure timestamp and random nonces return the same value

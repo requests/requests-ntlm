@@ -15,7 +15,7 @@ install:
 
 # start the Flask server for our tests
 before_script:
-  - python tests/test_server.py &
+  - python -m tests.test_server &
 
 # command to run tests
 script:
