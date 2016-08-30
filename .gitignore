@@ -4,4 +4,3 @@ env/
 build/
 dist/
 *.egg-info/
-.idea/

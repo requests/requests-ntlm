@@ -2,7 +2,7 @@ import unittest
 import requests
 import requests_ntlm
 
-from tests.test_utils import *
+from tests.test_utils import domain, username, password
 
 class TestRequestsNtlm(unittest.TestCase):
 
@@ -77,6 +77,3 @@ class TestRequestsNtlm(unittest.TestCase):
 
         assert actual_domain == expected_domain
         assert actual_user == expected_user
-
-if __name__ == '__main__':
-    unittest.main()

@@ -1,5 +1,4 @@
 import requests
-import unittest
 import requests_ntlm
 
 username = '.\\User'
@@ -10,7 +9,7 @@ https_with_cbt = 'https://127.0.0.1:441/contents.txt'
 https_without_cbt = 'https://127.0.0.1:442/contents.txt'
 expected = 'contents'
 
-class Test_Functional(unittest.TestCase):
+class Test_Functional():
     def test_ntlm_http_with_cbt(self):
         actual = send_request(http_with_cbt, username, password)
         actual_content = actual.content.decode('utf-8')
@@ -50,11 +49,6 @@ def send_request(url, username, password):
     session = requests.Session()
     session.verify = False
     session.auth = requests_ntlm.HttpNtlmAuth(username, password)
-    request = requests.Request('GET', url)
-    prepared_request = session.prepare_request(request)
-    response = session.send(prepared_request)
+    response = session.get(url)
 
     return response
-
-if __name__ == '__main__':
-    unittest.main()

@@ -1,6 +1,6 @@
 from flask import Flask,request
 from ntlm3 import ntlm
-from tests.test_utils import *
+from tests.test_utils import username, password, domain
 app = Flask(__name__)
 
 REQUEST_2_TEMPLATE = '{0} %s' % ntlm.create_NTLM_NEGOTIATE_MESSAGE(domain + "\\" + username).decode('ascii')
