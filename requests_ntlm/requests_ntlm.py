@@ -1,5 +1,10 @@
 from requests.auth import AuthBase
 from ntlm3 import ntlm
+from base64 import b64encode, b64decode
+import sspi, sspicon, win32security
+
+_package = "NTLM"  # name of the SSPI Security Package, more info at:
+                   # https://msdn.microsoft.com/en-us/library/windows/desktop/aa375450(v=vs.85).aspx
 
 
 class HttpNtlmAuth(AuthBase):
@@ -9,30 +14,39 @@ class HttpNtlmAuth(AuthBase):
     Supports pass-the-hash.
     """
 
-    def __init__(self, username, password, session=None):
+    _use_default_credentials = False
+
+    def __init__(self, username=None, password=None, session=None):
         r"""Create an authentication handler for NTLM over HTTP.
 
         :param str username: Username in 'domain\\username' format
         :param str password: Password or hash in
             "ABCDABCDABCDABCD:ABCDABCDABCDABCD" format.
         :param str session: Unused. Kept for backwards-compatibility.
+
+        If username or password are not specified, the user's default credentials are used.
+        This allows logging into Windows domain resources if the user is currently logged in
+        with a domain account.
         """
         if ntlm is None:
             raise Exception("NTLM libraries unavailable")
 
-        # parse the username
-        try:
-            self.domain, self.username = username.split('\\', 1)
-        except ValueError:
+        if username is None or password is None:
+            self._use_default_credentials = True
+        else:
+            # parse the username
             try:
-                self.username, self.domain = username.split('@', 1)
+                self.domain, self.username = username.split('\\', 1)
             except ValueError:
-                self.username = username
-                self.domain = '.'
+                try:
+                    self.username, self.domain = username.split('@', 1)
+                except ValueError:
+                    self.username = username
+                    self.domain = '.'
 
-        self.domain = self.domain.upper()
+            self.domain = self.domain.upper()
 
-        self.password = password
+            self.password = password
 
     def retry_using_http_NTLM_auth(self, auth_header_field, auth_header,
                                    response, auth_type, args):
@@ -55,12 +69,19 @@ class HttpNtlmAuth(AuthBase):
         request = response.request.copy()
 
         # initial auth header with username. will result in challenge
-        msg = "%s\\%s" % (self.domain, self.username) if self.domain else self.username
+        if self._use_default_credentials:
+            pkg_info = win32security.QuerySecurityPackageInfo(_package)
+            clientauth = sspi.ClientAuth(_package)
+            sec_buffer = win32security.PySecBufferDescType()
+            error, auth = clientauth.authorize(sec_buffer)
+            request.headers[auth_header] = '{} {}'.format(_package, b64encode(auth[0].Buffer).decode('ascii'))
+        else:
+            msg = "%s\\%s" % (self.domain, self.username) if self.domain else self.username
 
-        # ntlm returns the headers as a base64 encoded bytestring. Convert to
-        # a string.
-        auth = '%s %s' % (auth_type, ntlm.create_NTLM_NEGOTIATE_MESSAGE(msg).decode('ascii'))
-        request.headers[auth_header] = auth
+            # ntlm returns the headers as a base64 encoded bytestring. Convert to
+            # a string.
+            auth = '%s %s' % (auth_type, ntlm.create_NTLM_NEGOTIATE_MESSAGE(msg).decode('ascii'))
+            request.headers[auth_header] = auth
 
         # A streaming response breaks authentication.
         # This can be fixed by not streaming this request, which is safe
@@ -95,19 +116,27 @@ class HttpNtlmAuth(AuthBase):
             if s.startswith(auth_strip)
         ).strip()
 
-        ServerChallenge, NegotiateFlags = ntlm.parse_NTLM_CHALLENGE_MESSAGE(
-            ntlm_header_value[len(auth_strip):]
-        )
+        challenge_value = ntlm_header_value[len(auth_strip):]
 
         # build response
+        if self._use_default_credentials:
+            # Add challenge to security buffer
+            tokenbuf = win32security.PySecBufferType(pkg_info['MaxToken'], sspicon.SECBUFFER_TOKEN)
+            tokenbuf.Buffer = b64decode(challenge_value)
+            sec_buffer.append(tokenbuf)
 
-        # ntlm returns the headers as a base64 encoded bytestring. Convert to a
-        # string.
-        auth = '%s %s' % (auth_type, ntlm.create_NTLM_AUTHENTICATE_MESSAGE(
-            ServerChallenge, self.username, self.domain, self.password,
-            NegotiateFlags
-        ).decode('ascii'))
-        request.headers[auth_header] = auth
+            # Perform next authorization step
+            error, auth = clientauth.authorize(sec_buffer)
+            request.headers[auth_header] = '{} {}'.format(_package, b64encode(auth[0].Buffer).decode('ascii'))
+        else:
+            ServerChallenge, NegotiateFlags = ntlm.parse_NTLM_CHALLENGE_MESSAGE(challenge_value)
+            # ntlm returns the headers as a base64 encoded bytestring. Convert to a
+            # string.
+            auth = '%s %s' % (auth_type, ntlm.create_NTLM_AUTHENTICATE_MESSAGE(
+                ServerChallenge, self.username, self.domain, self.password,
+                NegotiateFlags
+            ).decode('ascii'))
+            request.headers[auth_header] = auth
 
         response3 = response2.connection.send(request, **args)
 
