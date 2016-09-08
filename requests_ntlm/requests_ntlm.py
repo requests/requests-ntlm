@@ -158,7 +158,6 @@ class HttpNtlmAuth(AuthBase):
         return r
 
 
-
 def _auth_type_from_header(header):
     """
     Given a WWW-Authenticate or Proxy-Authenticate header, returns the
