@@ -56,9 +56,10 @@ class HttpNtlmAuth(AuthBase):
 
         # initial auth header with username. will result in challenge
         if not self.domain:
-            msg = self.username
-            type1_flags = ntlm.NTLM_TYPE1_FLAGS & \
-                ~ntlm.NTLM_NegotiateOemDomainSupplied
+            msg = str(self.username)
+            type1_flags = (
+                ntlm.NTLM_TYPE1_FLAGS & ~ntlm.NTLM_NegotiateOemDomainSupplied
+            )
 
         else:
             msg = "%s\\%s" % (self.domain, self.username)
@@ -66,8 +67,8 @@ class HttpNtlmAuth(AuthBase):
 
         # ntlm returns the headers as a base64 encoded bytestring. Convert to
         # a string.
-        auth = '%s %s' % (auth_type, ntlm.create_NTLM_NEGOTIATE_MESSAGE(
-            msg, type1_flags).decode('ascii'))
+        negotiate_message = ntlm.create_NTLM_NEGOTIATE_MESSAGE(msg, type1_flags).decode('ascii')
+        auth = '%s %s' % (auth_type, negotiate_message)
         request.headers[auth_header] = auth
 
         # A streaming response breaks authentication.
