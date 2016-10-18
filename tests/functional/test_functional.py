@@ -1,6 +1,12 @@
 import requests
 import requests_ntlm
 
+"""
+This test is meant to run with Appveyor but until the integration is solved
+it can only be run locally. The script setup_iis.ps1 can set up an IIS server
+with the 4 scenarios tested below if you wish to run a sanity check
+"""
+
 username = '.\\User'
 password = 'Password01'
 http_with_cbt = 'http://127.0.0.1:81/contents.txt'
@@ -26,13 +32,17 @@ class Test_Functional():
         assert actual_code == 200
         assert actual_content == expected
 
+    """
+    Cannot run this test with the current NTLM dependency as this scenario
+    isn't supported
     def test_ntlm_https_with_cbt(self):
         actual = send_request(https_with_cbt, username, password)
         actual_content = actual.content.decode('utf-8')
         actual_code = actual.status_code
 
-        # Until changes are merged into python-ntlm3 or dependency is changed, this won't work
-        assert actual_code == 401
+        assert actual_code == 200
+        assert actual_content == expected
+    """
 
     def test_ntlm_https_without_cbt(self):
         actual = send_request(https_without_cbt, username, password)
