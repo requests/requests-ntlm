@@ -1,6 +1,10 @@
-from requests.auth import AuthBase
-from ntlm3 import ntlm
+import hashlib
+import ssl
+import re
 
+from ntlm_auth import ntlm
+from requests.auth import AuthBase
+from socket import socket
 
 class HttpNtlmAuth(AuthBase):
     """
@@ -13,8 +17,7 @@ class HttpNtlmAuth(AuthBase):
         r"""Create an authentication handler for NTLM over HTTP.
 
         :param str username: Username in 'domain\\username' format
-        :param str password: Password or hash in
-            "ABCDABCDABCDABCD:ABCDABCDABCDABCD" format.
+        :param str password: Password
         :param str session: Unused. Kept for backwards-compatibility.
         """
         if ntlm is None:
@@ -31,8 +34,10 @@ class HttpNtlmAuth(AuthBase):
                 self.domain = '.'
 
         self.domain = self.domain.upper()
-
         self.password = password
+
+        # Used by other python libraries to sign/seal messages with NTLM methods
+        self.session_security = None
 
     def retry_using_http_NTLM_auth(self, auth_header_field, auth_header,
                                    response, auth_type, args):
@@ -54,20 +59,10 @@ class HttpNtlmAuth(AuthBase):
         response.raw.release_conn()
         request = response.request.copy()
 
-        # initial auth header with username. will result in challenge
-        if not self.domain:
-            msg = str(self.username)
-            type1_flags = (
-                ntlm.NTLM_TYPE1_FLAGS & ~ntlm.NTLM_NegotiateOemDomainSupplied
-            )
-
-        else:
-            msg = "%s\\%s" % (self.domain, self.username)
-            type1_flags = ntlm.NTLM_TYPE1_FLAGS
-
         # ntlm returns the headers as a base64 encoded bytestring. Convert to
         # a string.
-        negotiate_message = ntlm.create_NTLM_NEGOTIATE_MESSAGE(msg, type1_flags).decode('ascii')
+        context = ntlm.Ntlm()
+        negotiate_message = context.create_negotiate_message(self.domain).decode('ascii')
         auth = '%s %s' % (auth_type, negotiate_message)
         request.headers[auth_header] = auth
 
@@ -104,18 +99,18 @@ class HttpNtlmAuth(AuthBase):
             if s.startswith(auth_strip)
         ).strip()
 
-        ServerChallenge, NegotiateFlags = ntlm.parse_NTLM_CHALLENGE_MESSAGE(
-            ntlm_header_value[len(auth_strip):]
-        )
+        # Parse the challenge in the ntlm context
+        context.parse_challenge_message(ntlm_header_value[len(auth_strip):])
 
         # build response
+        # Get the certificate of the server if using HTTPS
+        server_certificate_hash = _get_server_cert(request.url)
 
-        # ntlm returns the headers as a base64 encoded bytestring. Convert to a
-        # string.
-        auth = '%s %s' % (auth_type, ntlm.create_NTLM_AUTHENTICATE_MESSAGE(
-            ServerChallenge, self.username, self.domain, self.password,
-            NegotiateFlags
-        ).decode('ascii'))
+        # Get the response based on the challenge message
+        authenticate_message = context.create_authenticate_message(self.username, self.password, self.domain,
+                                                                        server_certificate_hash=server_certificate_hash)
+        authenticate_message = authenticate_message.decode('ascii')
+        auth = '%s %s' % (auth_type, authenticate_message)
         request.headers[auth_header] = auth
 
         response3 = response2.connection.send(request, **args)
@@ -123,6 +118,9 @@ class HttpNtlmAuth(AuthBase):
         # Update the history.
         response3.history.append(response)
         response3.history.append(response2)
+
+        # Get the session_security object created by ntlm-auth for signing and sealing of messages
+        self.session_security = context.session_security
 
         return response3
 
@@ -180,3 +178,32 @@ def _auth_type_from_header(header):
         return 'Negotiate'
 
     return None
+
+def _get_server_cert(request_url):
+    """
+    Get the certificate at the request_url and return it as a SHA256 hash. Will check the endpoint if it
+    is a https site and use the default port 443 is it isn't explicitly specified in the URL. Used to send
+    in with NTLMv2 authentication for Channel Binding Tokens
+
+    :param request_url: The request url in the format https://endpoint:port/path
+    :return: SHA256 hash of the DER encoded certificate at the request_url or None if not a HTTPS endpoint
+    """
+    host_pattern = re.compile('(?i)^https://?(?P<host>[0-9a-z-_.]+)(:(?P<port>\d+))?')
+    match = host_pattern.match(request_url)
+
+    if match:
+        host = match.group('host')
+        port = match.group('port')
+        if not port:
+            port = 443
+        else:
+            port = int(port)
+
+        s = socket()
+        c = ssl.wrap_socket(s)
+        c.connect((host, port))
+        server_certificate = c.getpeercert(True)
+        hash_object = hashlib.sha256(server_certificate)
+        return hash_object.hexdigest().upper()
+    else:
+        return None

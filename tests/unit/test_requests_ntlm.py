@@ -1,18 +1,29 @@
 import unittest
 import requests
 import requests_ntlm
+import mock
 
-from tests.test_utils import domain, username, password
+from tests.test_utils import mock_random, mock_version, mock_random_session_key, \
+    mock_timestamp, domain, username, password
+
+"""
+In these tests we need to mock out the 4 different methods to ensure timestamp and random nonces return the same value
+in all our tests.
+"""
 
 class TestRequestsNtlm(unittest.TestCase):
 
     def setUp(self):
         self.test_server_url        = 'http://localhost:5000/'
-        self.test_server_username   = domain + "\\" + username
+        self.test_server_username   = '%s\\%s' % (domain, username)
         self.test_server_password   = password
         self.auth_types = ['ntlm','negotiate','both']
 
-    def test_requests_ntlm(self):
+    @mock.patch('os.urandom', side_effect=mock_random)
+    @mock.patch('ntlm_auth.messages.get_version', side_effect=mock_version)
+    @mock.patch("ntlm_auth.messages.get_random_export_session_key", side_effect=mock_random_session_key)
+    @mock.patch('ntlm_auth.compute_response.get_windows_timestamp', side_effect=mock_timestamp)
+    def test_requests_ntlm(self, mock_random, mock_version, mock_session_key, mock_timestamp):
         for auth_type in self.auth_types:
             res = requests.get(\
                 url  = self.test_server_url + auth_type,\
@@ -22,7 +33,11 @@ class TestRequestsNtlm(unittest.TestCase):
 
             self.assertEqual(res.status_code,200, msg='auth_type ' + auth_type)
 
-    def test_history_is_preserved(self):
+    @mock.patch('os.urandom', side_effect=mock_random)
+    @mock.patch('ntlm_auth.messages.get_version', side_effect=mock_version)
+    @mock.patch("ntlm_auth.messages.get_random_export_session_key", side_effect=mock_random_session_key)
+    @mock.patch('ntlm_auth.compute_response.get_windows_timestamp', side_effect=mock_timestamp)
+    def test_history_is_preserved(self, mock_random, mock_version, mock_session_key, mock_timestamp):
         for auth_type in self.auth_types:
             res = requests.get(url=self.test_server_url + auth_type,
                                auth=requests_ntlm.HttpNtlmAuth(self.test_server_username,
@@ -30,7 +45,11 @@ class TestRequestsNtlm(unittest.TestCase):
 
             self.assertEqual(len(res.history), 2)
 
-    def test_new_requests_are_used(self):
+    @mock.patch('os.urandom', side_effect=mock_random)
+    @mock.patch('ntlm_auth.messages.get_version', side_effect=mock_version)
+    @mock.patch("ntlm_auth.messages.get_random_export_session_key", side_effect=mock_random_session_key)
+    @mock.patch('ntlm_auth.compute_response.get_windows_timestamp', side_effect=mock_timestamp)
+    def test_new_requests_are_used(self, mock_random, mock_version, mock_session_key, mock_timestamp):
         for auth_type in self.auth_types:
             res = requests.get(url=self.test_server_url + auth_type,
                                auth=requests_ntlm.HttpNtlmAuth(self.test_server_username,
