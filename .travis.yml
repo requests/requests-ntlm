@@ -7,7 +7,6 @@ python:
   - "3.4"
   - "3.5"
 
-# command to install dependencies
 install:
   - pip install .
   - pip install -r requirements.txt
@@ -17,7 +16,6 @@ install:
 before_script:
   - python -m tests.test_server &
 
-# command to run tests
 script:
   - py.test --ignore=tests/functional/test_functional.py --ignore=tests/test_server.py --cov requests_ntlm --cov-report term-missing tests
 
