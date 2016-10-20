@@ -29,8 +29,8 @@ def get_auth_response(auth_type, mock_random, mock_version, mock_session_key, mo
     ntlm_context = ntlm.Ntlm()
     negotiate_response = ntlm_context.create_negotiate_message(domain.upper()).decode('ascii')
 
-    challenge_response = 'TlRMTVNTUAACAAAAAwAMADgAAAAzgoriASNFZ4mrze8AAAAAAAAAACQAJABEAAAABgBwFwAAAA9TAGUA' \
-                         'cgB2AGUAcgACAAwARABvAG0AYQBpAG4AAQAMAFMAZQByAHYAZQByAAAAAAA='
+    challenge_response = ('TlRMTVNTUAACAAAAAwAMADgAAAAzgoriASNFZ4mrze8AAAAAAAAAACQAJABEAAAABgBwFwAAAA9TAGUAcgB2AGUA'
+                          'cgACAAwARABvAG0AYQBpAG4AAQAMAFMAZQByAHYAZQByAAAAAAA=')
     ntlm_context.parse_challenge_message(challenge_response)
 
     auth_response = ntlm_context.create_authenticate_message(username, password, domain.upper()).decode('ascii')

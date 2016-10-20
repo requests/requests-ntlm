@@ -1,10 +1,11 @@
 import hashlib
-import ssl
-import re
+import sys
+import warnings
 
 from ntlm_auth import ntlm
 from requests.auth import AuthBase
-from socket import socket
+from requests.packages.urllib3.response import HTTPResponse
+from ssl import SSLSocket
 
 class HttpNtlmAuth(AuthBase):
     """
@@ -14,7 +15,7 @@ class HttpNtlmAuth(AuthBase):
     """
 
     def __init__(self, username, password, session=None):
-        r"""Create an authentication handler for NTLM over HTTP.
+        """Create an authentication handler for NTLM over HTTP.
 
         :param str username: Username in 'domain\\username' format
         :param str password: Password
@@ -36,11 +37,16 @@ class HttpNtlmAuth(AuthBase):
         self.domain = self.domain.upper()
         self.password = password
 
-        # Used by other python libraries to sign/seal messages with NTLM methods
+        # This exposes the encrypt/decrypt methods used to encrypt and decrypt messages
+        # sent after ntlm authentication. These methods are utilised by libraries that
+        # call requests_ntlm to encrypt and decrypt the messages sent after authentication
         self.session_security = None
 
     def retry_using_http_NTLM_auth(self, auth_header_field, auth_header,
                                    response, auth_type, args):
+        # Get the certificate of the server if using HTTPS for CBT
+        server_certificate_hash = _get_server_cert(response)
+
         """Attempt to authenticate using HTTP NTLM challenge/response."""
         if auth_header in response.request.headers:
             return response
@@ -103,9 +109,6 @@ class HttpNtlmAuth(AuthBase):
         context.parse_challenge_message(ntlm_header_value[len(auth_strip):])
 
         # build response
-        # Get the certificate of the server if using HTTPS
-        server_certificate_hash = _get_server_cert(request.url)
-
         # Get the response based on the challenge message
         authenticate_message = context.create_authenticate_message(self.username, self.password, self.domain,
                                                                         server_certificate_hash=server_certificate_hash)
@@ -165,7 +168,6 @@ class HttpNtlmAuth(AuthBase):
         return r
 
 
-
 def _auth_type_from_header(header):
     """
     Given a WWW-Authenticate or Proxy-Authenticate header, returns the
@@ -179,31 +181,31 @@ def _auth_type_from_header(header):
 
     return None
 
-def _get_server_cert(request_url):
+def _get_server_cert(response):
     """
-    Get the certificate at the request_url and return it as a SHA256 hash. Will check the endpoint if it
-    is a https site and use the default port 443 is it isn't explicitly specified in the URL. Used to send
-    in with NTLMv2 authentication for Channel Binding Tokens
+    Get the certificate at the request_url and return it as a SHA256 hash. Will get the raw socket from the
+    original response from the server. This socket is then checked if it is an SSL socket and then used to
+    get the hash of the certificate. The certificate hash is then used with NTLMv2 authentication for
+    Channel Binding Tokens support. If the raw object is not a urllib3 HTTPReponse (default with requests)
+    then no certificate will be returned.
 
-    :param request_url: The request url in the format https://endpoint:port/path
+    :param response: The original 401 response from the server
     :return: SHA256 hash of the DER encoded certificate at the request_url or None if not a HTTPS endpoint
     """
-    host_pattern = re.compile('(?i)^https://?(?P<host>[0-9a-z-_.]+)(:(?P<port>\d+))?')
-    match = host_pattern.match(request_url)
+    certificate_hash = None
+    raw_response = response.raw
 
-    if match:
-        host = match.group('host')
-        port = match.group('port')
-        if not port:
-            port = 443
+    if isinstance(raw_response, HTTPResponse):
+        if sys.version_info > (3, 0):
+            socket = response.raw._fp.fp.raw._sock
         else:
-            port = int(port)
+            socket = response.raw._fp.fp._sock
 
-        s = socket()
-        c = ssl.wrap_socket(s)
-        c.connect((host, port))
-        server_certificate = c.getpeercert(True)
-        hash_object = hashlib.sha256(server_certificate)
-        return hash_object.hexdigest().upper()
+        if isinstance(socket, SSLSocket):
+            server_certificate = socket.getpeercert(True)
+            hash_object = hashlib.sha256(server_certificate)
+            certificate_hash = hash_object.hexdigest().upper()
     else:
-        return None
+        warnings.warn("Requests is running with a non urllib3 backend, cannot retrieve server certificate for CBT", RuntimeWarning)
+
+    return certificate_hash
