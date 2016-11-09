@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name='requests_ntlm',
-    version='0.4.0',
+    version='1.0.0',
     packages=[ 'requests_ntlm' ],
     install_requires=[ 'requests>=2.0.0', 'ntlm-auth>=1.0.2' ],
     provides=[ 'requests_ntlm' ],
