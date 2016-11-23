@@ -5,7 +5,6 @@ import warnings
 from ntlm_auth import ntlm
 from requests.auth import AuthBase
 from requests.packages.urllib3.response import HTTPResponse
-from ssl import SSLSocket
 
 class HttpNtlmAuth(AuthBase):
     """
@@ -201,11 +200,14 @@ def _get_server_cert(response):
         else:
             socket = response.raw._fp.fp._sock
 
-        if isinstance(socket, SSLSocket):
+        if hasattr(socket, 'getpeercert') and callable(getattr(socket, 'getpeercert')):
             server_certificate = socket.getpeercert(True)
             hash_object = hashlib.sha256(server_certificate)
             certificate_hash = hash_object.hexdigest().upper()
     else:
-        warnings.warn("Requests is running with a non urllib3 backend, cannot retrieve server certificate for CBT", RuntimeWarning)
+        warnings.warn("Requests is running with a non urllib3 backend, cannot retrieve server certificate for CBT", NoCertificateRetrievedWarning)
 
     return certificate_hash
+
+class NoCertificateRetrievedWarning(Warning):
+    pass

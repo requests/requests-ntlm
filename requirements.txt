@@ -3,5 +3,4 @@ ntlm-auth>=1.0.2
 flask
 pytest
 pytest-cov
-mock
 wheel
