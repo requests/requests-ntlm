@@ -196,12 +196,13 @@ def _get_server_cert(response):
 
     if isinstance(raw_response, HTTPResponse):
         if sys.version_info > (3, 0):
-            socket = response.raw._fp.fp.raw._sock
+            socket = raw_response._fp.fp.raw._sock
         else:
-            socket = response.raw._fp.fp._sock
+            socket = raw_response._fp.fp._sock
 
-        if hasattr(socket, 'getpeercert') and callable(getattr(socket, 'getpeercert')):
-            server_certificate = socket.getpeercert(True)
+        getpeercert = getattr(socket, 'getperrcert', None)
+        if callable(getpeercert):
+            server_certificate = getpeercert(True)
             hash_object = hashlib.sha256(server_certificate)
             certificate_hash = hash_object.hexdigest().upper()
     else:
