@@ -68,7 +68,7 @@ class HttpNtlmAuth(AuthBase):
         # a string.
         context = ntlm.Ntlm()
         negotiate_message = context.create_negotiate_message(self.domain).decode('ascii')
-        auth = '%s %s' % (auth_type, negotiate_message)
+        auth = u'%s %s' % (auth_type, negotiate_message)
         request.headers[auth_header] = auth
 
         # A streaming response breaks authentication.
@@ -112,7 +112,7 @@ class HttpNtlmAuth(AuthBase):
         authenticate_message = context.create_authenticate_message(self.username, self.password, self.domain,
                                                                         server_certificate_hash=server_certificate_hash)
         authenticate_message = authenticate_message.decode('ascii')
-        auth = '%s %s' % (auth_type, authenticate_message)
+        auth = u'%s %s' % (auth_type, authenticate_message)
         request.headers[auth_header] = auth
 
         response3 = response2.connection.send(request, **args)
