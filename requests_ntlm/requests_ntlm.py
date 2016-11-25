@@ -200,9 +200,11 @@ def _get_server_cert(response):
         else:
             socket = raw_response._fp.fp._sock
 
-        getpeercert = getattr(socket, 'getperrcert', None)
-        if callable(getpeercert):
-            server_certificate = getpeercert(True)
+        try:
+            server_certificate = socket.getpeercert(True)
+        except AttributeError:
+            pass
+        else:
             hash_object = hashlib.sha256(server_certificate)
             certificate_hash = hash_object.hexdigest().upper()
     else:
