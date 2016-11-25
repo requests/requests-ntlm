@@ -109,8 +109,12 @@ class HttpNtlmAuth(AuthBase):
 
         # build response
         # Get the response based on the challenge message
-        authenticate_message = context.create_authenticate_message(self.username, self.password, self.domain,
-                                                                        server_certificate_hash=server_certificate_hash)
+        authenticate_message = context.create_authenticate_message(
+            self.username,
+            self.password,
+            self.domain,
+            server_certificate_hash=server_certificate_hash
+        )
         authenticate_message = authenticate_message.decode('ascii')
         auth = u'%s %s' % (auth_type, authenticate_message)
         request.headers[auth_header] = auth
