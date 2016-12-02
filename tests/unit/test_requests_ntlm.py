@@ -8,7 +8,7 @@ class TestRequestsNtlm(unittest.TestCase):
 
     def setUp(self):
         self.test_server_url        = 'http://localhost:5000/'
-        self.test_server_username   = domain + "\\" + username
+        self.test_server_username   = '%s\\%s' % (domain, username)
         self.test_server_password   = password
         self.auth_types = ['ntlm','negotiate','both']
 

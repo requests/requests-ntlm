@@ -1,5 +1,6 @@
 requests
-python-ntlm3
+ntlm-auth>=1.0.2
 flask
 pytest
 pytest-cov
+wheel

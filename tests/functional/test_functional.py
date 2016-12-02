@@ -32,9 +32,6 @@ class Test_Functional():
         assert actual_code == 200
         assert actual_content == expected
 
-    """
-    Cannot run this test with the current NTLM dependency as this scenario
-    isn't supported
     def test_ntlm_https_with_cbt(self):
         actual = send_request(https_with_cbt, username, password)
         actual_content = actual.content.decode('utf-8')
@@ -42,7 +39,6 @@ class Test_Functional():
 
         assert actual_code == 200
         assert actual_content == expected
-    """
 
     def test_ntlm_https_without_cbt(self):
         actual = send_request(https_without_cbt, username, password)

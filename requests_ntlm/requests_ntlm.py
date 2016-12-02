@@ -1,6 +1,10 @@
-from requests.auth import AuthBase
-from ntlm3 import ntlm
+import hashlib
+import sys
+import warnings
 
+from ntlm_auth import ntlm
+from requests.auth import AuthBase
+from requests.packages.urllib3.response import HTTPResponse
 
 class HttpNtlmAuth(AuthBase):
     """
@@ -10,11 +14,10 @@ class HttpNtlmAuth(AuthBase):
     """
 
     def __init__(self, username, password, session=None):
-        r"""Create an authentication handler for NTLM over HTTP.
+        """Create an authentication handler for NTLM over HTTP.
 
         :param str username: Username in 'domain\\username' format
-        :param str password: Password or hash in
-            "ABCDABCDABCDABCD:ABCDABCDABCDABCD" format.
+        :param str password: Password
         :param str session: Unused. Kept for backwards-compatibility.
         """
         if ntlm is None:
@@ -31,11 +34,18 @@ class HttpNtlmAuth(AuthBase):
                 self.domain = '.'
 
         self.domain = self.domain.upper()
-
         self.password = password
+
+        # This exposes the encrypt/decrypt methods used to encrypt and decrypt messages
+        # sent after ntlm authentication. These methods are utilised by libraries that
+        # call requests_ntlm to encrypt and decrypt the messages sent after authentication
+        self.session_security = None
 
     def retry_using_http_NTLM_auth(self, auth_header_field, auth_header,
                                    response, auth_type, args):
+        # Get the certificate of the server if using HTTPS for CBT
+        server_certificate_hash = _get_server_cert(response)
+
         """Attempt to authenticate using HTTP NTLM challenge/response."""
         if auth_header in response.request.headers:
             return response
@@ -54,21 +64,11 @@ class HttpNtlmAuth(AuthBase):
         response.raw.release_conn()
         request = response.request.copy()
 
-        # initial auth header with username. will result in challenge
-        if not self.domain:
-            msg = str(self.username)
-            type1_flags = (
-                ntlm.NTLM_TYPE1_FLAGS & ~ntlm.NTLM_NegotiateOemDomainSupplied
-            )
-
-        else:
-            msg = "%s\\%s" % (self.domain, self.username)
-            type1_flags = ntlm.NTLM_TYPE1_FLAGS
-
         # ntlm returns the headers as a base64 encoded bytestring. Convert to
         # a string.
-        negotiate_message = ntlm.create_NTLM_NEGOTIATE_MESSAGE(msg, type1_flags).decode('ascii')
-        auth = '%s %s' % (auth_type, negotiate_message)
+        context = ntlm.Ntlm()
+        negotiate_message = context.create_negotiate_message(self.domain).decode('ascii')
+        auth = u'%s %s' % (auth_type, negotiate_message)
         request.headers[auth_header] = auth
 
         # A streaming response breaks authentication.
@@ -104,18 +104,19 @@ class HttpNtlmAuth(AuthBase):
             if s.startswith(auth_strip)
         ).strip()
 
-        ServerChallenge, NegotiateFlags = ntlm.parse_NTLM_CHALLENGE_MESSAGE(
-            ntlm_header_value[len(auth_strip):]
-        )
+        # Parse the challenge in the ntlm context
+        context.parse_challenge_message(ntlm_header_value[len(auth_strip):])
 
         # build response
-
-        # ntlm returns the headers as a base64 encoded bytestring. Convert to a
-        # string.
-        auth = '%s %s' % (auth_type, ntlm.create_NTLM_AUTHENTICATE_MESSAGE(
-            ServerChallenge, self.username, self.domain, self.password,
-            NegotiateFlags
-        ).decode('ascii'))
+        # Get the response based on the challenge message
+        authenticate_message = context.create_authenticate_message(
+            self.username,
+            self.password,
+            self.domain,
+            server_certificate_hash=server_certificate_hash
+        )
+        authenticate_message = authenticate_message.decode('ascii')
+        auth = u'%s %s' % (auth_type, authenticate_message)
         request.headers[auth_header] = auth
 
         response3 = response2.connection.send(request, **args)
@@ -123,6 +124,9 @@ class HttpNtlmAuth(AuthBase):
         # Update the history.
         response3.history.append(response)
         response3.history.append(response2)
+
+        # Get the session_security object created by ntlm-auth for signing and sealing of messages
+        self.session_security = context.session_security
 
         return response3
 
@@ -167,7 +171,6 @@ class HttpNtlmAuth(AuthBase):
         return r
 
 
-
 def _auth_type_from_header(header):
     """
     Given a WWW-Authenticate or Proxy-Authenticate header, returns the
@@ -180,3 +183,38 @@ def _auth_type_from_header(header):
         return 'Negotiate'
 
     return None
+
+def _get_server_cert(response):
+    """
+    Get the certificate at the request_url and return it as a SHA256 hash. Will get the raw socket from the
+    original response from the server. This socket is then checked if it is an SSL socket and then used to
+    get the hash of the certificate. The certificate hash is then used with NTLMv2 authentication for
+    Channel Binding Tokens support. If the raw object is not a urllib3 HTTPReponse (default with requests)
+    then no certificate will be returned.
+
+    :param response: The original 401 response from the server
+    :return: SHA256 hash of the DER encoded certificate at the request_url or None if not a HTTPS endpoint
+    """
+    certificate_hash = None
+    raw_response = response.raw
+
+    if isinstance(raw_response, HTTPResponse):
+        if sys.version_info > (3, 0):
+            socket = raw_response._fp.fp.raw._sock
+        else:
+            socket = raw_response._fp.fp._sock
+
+        try:
+            server_certificate = socket.getpeercert(True)
+        except AttributeError:
+            pass
+        else:
+            hash_object = hashlib.sha256(server_certificate)
+            certificate_hash = hash_object.hexdigest().upper()
+    else:
+        warnings.warn("Requests is running with a non urllib3 backend, cannot retrieve server certificate for CBT", NoCertificateRetrievedWarning)
+
+    return certificate_hash
+
+class NoCertificateRetrievedWarning(Warning):
+    pass
