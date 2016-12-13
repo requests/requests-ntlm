@@ -13,25 +13,28 @@ class HttpNtlmAuth(AuthBase):
     Supports pass-the-hash.
     """
 
-    def __init__(self, username, password, session=None):
+    def __init__(self, username, password, session=None, domain=None):
         """Create an authentication handler for NTLM over HTTP.
 
-        :param str username: Username in 'domain\\username' format
+        :param str username: Username
         :param str password: Password
         :param str session: Unused. Kept for backwards-compatibility.
+        :param str domain: Domain. If left None will be parsed out of username.
         """
         if ntlm is None:
             raise Exception("NTLM libraries unavailable")
 
-        # parse the username
-        try:
-            self.domain, self.username = username.split('\\', 1)
-        except ValueError:
-            try:
+        if domain is not None:
+            self.username = username
+            self.domain = domain
+        else:
+            # parse the username
+            if '\\' in username:
+                self.domain, self.username = username.split('\\', 1)
+            elif '@' in username:
                 self.username, self.domain = username.split('@', 1)
-            except ValueError:
-                self.username = username
-                self.domain = '.'
+            else:
+                self.username, self.domain = (username, '.')
 
         self.domain = self.domain.upper()
         self.password = password
