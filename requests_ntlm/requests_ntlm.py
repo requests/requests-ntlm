@@ -16,10 +16,14 @@ class HttpNtlmAuth(AuthBase):
     def __init__(self, username, password, session=None, domain=None):
         """Create an authentication handler for NTLM over HTTP.
 
-        :param str username: Username
+        :param str username: Username. If in either 'domain\\\\username'
+            format or 'username@domain' format, username and domain will be
+            parsed out of it. Otherwise, domain is set to '.' and username
+            is left intact. If the domain parameter is set no parsing is done
+            regardless of the username format.
         :param str password: Password
         :param str session: Unused. Kept for backwards-compatibility.
-        :param str domain: Domain. If left None will be parsed out of username.
+        :param str domain: Domain. If None will be parsed out of username.
         """
         if ntlm is None:
             raise Exception("NTLM libraries unavailable")
@@ -29,12 +33,14 @@ class HttpNtlmAuth(AuthBase):
             self.domain = domain
         else:
             # parse the username
-            if '\\' in username:
+            try:
                 self.domain, self.username = username.split('\\', 1)
-            elif '@' in username:
-                self.username, self.domain = username.split('@', 1)
-            else:
-                self.username, self.domain = (username, '.')
+            except ValueError:
+                try:
+                    self.username, self.domain = username.split('@', 1)
+                except ValueError:
+                    self.username = username
+                    self.domain = '.'
 
         self.domain = self.domain.upper()
         self.password = password
