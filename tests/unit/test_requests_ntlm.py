@@ -77,3 +77,18 @@ class TestRequestsNtlm(unittest.TestCase):
 
         assert actual_domain == expected_domain
         assert actual_user == expected_user
+
+    def test_username_with_explicit_domain(self):
+        test_user = 'user@server.com'
+        test_domain = 'domain'
+        expected_domain = 'DOMAIN'
+        expected_user = 'user@server.com'
+
+        context = requests_ntlm.HttpNtlmAuth(
+            test_user, 'pass', domain=test_domain)
+
+        actual_domain = context.domain
+        actual_user = context.username
+
+        assert actual_domain == expected_domain
+        assert actual_user == expected_user
