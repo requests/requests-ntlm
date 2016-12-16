@@ -179,7 +179,6 @@ class HttpNtlmAuth(AuthBase):
         r.register_hook('response', self.response_hook)
         return r
 
-print(HttpNtlmAuth.__init__.__doc__)
 
 def _auth_type_from_header(header):
     """
