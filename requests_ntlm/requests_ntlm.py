@@ -14,13 +14,13 @@ class HttpNtlmAuth(AuthBase):
     """
 
     def __init__(self, username, password, session=None, domain=None):
-        """Create an authentication handler for NTLM over HTTP.
+        r"""Create an authentication handler for NTLM over HTTP.
 
-        :param str username: Username. If in either 'domain\\\\username'
-            format or 'username@domain' format, username and domain will be
-            parsed out of it. Otherwise, domain is set to '.' and username
-            is left intact. If the domain parameter is set no parsing is done
-            regardless of the username format.
+        :param str username: Username. If in either 'domain\username' format or
+            'username@domain' format, username and domain will be parsed out of
+            it. Otherwise, domain is set to '.' and username is left intact. If
+            the domain parameter is set no parsing is done regardless of the
+            username format.
         :param str password: Password
         :param str session: Unused. Kept for backwards-compatibility.
         :param str domain: Domain. If None will be parsed out of username.
@@ -179,6 +179,7 @@ class HttpNtlmAuth(AuthBase):
         r.register_hook('response', self.response_hook)
         return r
 
+print(HttpNtlmAuth.__init__.__doc__)
 
 def _auth_type_from_header(header):
     """
