@@ -53,9 +53,11 @@ class TestRequestsNtlm(unittest.TestCase):
         assert actual_user == expected_user
 
     def test_username_parse_at(self):
-        test_user = 'user@domain'
-        expected_domain = 'DOMAIN'
-        expected_user = 'user'
+        test_user = 'user@domain.com'
+        # UPN format should not be split, since "stuff after @" not always == domain 
+        # (eg, email address with alt UPN suffix)
+        expected_domain = ''
+        expected_user = 'user@domain.com'
 
         context = requests_ntlm.HttpNtlmAuth(test_user, 'pass')
 
@@ -67,7 +69,7 @@ class TestRequestsNtlm(unittest.TestCase):
 
     def test_username_parse_no_domain(self):
         test_user = 'user'
-        expected_domain = '.'
+        expected_domain = ''
         expected_user = 'user'
 
         context = requests_ntlm.HttpNtlmAuth(test_user, 'pass')

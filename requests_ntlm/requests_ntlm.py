@@ -27,13 +27,11 @@ class HttpNtlmAuth(AuthBase):
         try:
             self.domain, self.username = username.split('\\', 1)
         except ValueError:
-            try:
-                self.username, self.domain = username.split('@', 1)
-            except ValueError:
-                self.username = username
-                self.domain = '.'
+            self.username = username
+            self.domain = ''
 
-        self.domain = self.domain.upper()
+        if self.domain:
+            self.domain = self.domain.upper()
         self.password = password
 
         # This exposes the encrypt/decrypt methods used to encrypt and decrypt messages
