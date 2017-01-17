@@ -1,3 +1,3 @@
-from .requests_ntlm import HttpNtlmAuth
+from .requests_ntlm import HttpNtlmAuth, HttpNtlmSspiAuth
 
-__all__ = ('HttpNtlmAuth',)
+__all__ = ('HttpNtlmAuth', 'HttpNtlmSspiAuth')
