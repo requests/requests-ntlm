@@ -2,6 +2,7 @@ import base64
 import unittest
 import requests
 import requests_ntlm
+import warnings
 
 from tests.test_utils import domain, username, password
 
@@ -106,8 +107,8 @@ class TestCertificateHash(unittest.TestCase):
                    b'q0IpXU/KeNFkdGV6VPCmzhykijExOMwO6doUzIUM8orv9jYLHXYC+i6' \
                    b'IFKSb6runxF1MAik+GCSA=='
 
-        expected_hash = b'2334B8476CBF4E6DFC766A5D5A30D6649C01BAE1662A5C3A13' \
-                        b'02A968D7C6B0F6'
+        expected_hash = '2334B8476CBF4E6DFC766A5D5A30D6649C01BAE1662A5C3A130' \
+                        '2A968D7C6B0F6'
         actual_hash = requests_ntlm.HttpNtlmAuth('', '')._get_certificate_hash(base64.b64decode(cert_der))
         assert actual_hash == expected_hash
 
@@ -133,8 +134,8 @@ class TestCertificateHash(unittest.TestCase):
                    b'D2yBDyrJMJKZLmDgfpNIeCimncTOzi2IhzqJiOY/4XPsVN/Xqv0/dzG' \
                    b'TDdI11kPLq4EiwxvPanCg=='
 
-        expected_hash = b'14CFE8E4B332B20A343FC840B18F9F6F78926AFE7EC3E7B8E2' \
-                        b'8969619B1E8F3E'
+        expected_hash = '14CFE8E4B332B20A343FC840B18F9F6F78926AFE7EC3E7B8E28' \
+                        '969619B1E8F3E'
         actual_hash = requests_ntlm.HttpNtlmAuth('', '')._get_certificate_hash(base64.b64decode(cert_der))
         assert actual_hash == expected_hash
 
@@ -160,8 +161,8 @@ class TestCertificateHash(unittest.TestCase):
                    b'+50WSXKN2TAKBO2fwoK+2/zIWrGRxJTARfQdF+fGKuj+AERIFNh88HW' \
                    b'xSDYjHQAaFMcfdUpa9GGQ=='
 
-        expected_hash = b'996F3EEA812C1870E30549FF9B86CD87A890B6D8DFDF4A81BE' \
-                        b'F9675970DADB26'
+        expected_hash = '996F3EEA812C1870E30549FF9B86CD87A890B6D8DFDF4A81BEF' \
+                        '9675970DADB26'
         actual_hash = requests_ntlm.HttpNtlmAuth('', '')._get_certificate_hash(base64.b64decode(cert_der))
         assert actual_hash == expected_hash
 
@@ -187,8 +188,8 @@ class TestCertificateHash(unittest.TestCase):
                    b'hQBEwgnAIPa+B68oDILaV0V8hvxrP6jFM4IrKoGS1cq0B+Ns0zkG7ZA' \
                    b'2Q0W+3nVwSxIr6bd6hw7g=='
 
-        expected_hash = b'34F303C995286F4B214A9BA6435B69B51ECF3758EABC2A14D7' \
-                        b'A43FD237DC2B1A1AD9111C5C965E107507CB4198C09FEC'
+        expected_hash = '34F303C995286F4B214A9BA6435B69B51ECF3758EABC2A14D7A' \
+                        '43FD237DC2B1A1AD9111C5C965E107507CB4198C09FEC'
         actual_hash = requests_ntlm.HttpNtlmAuth('', '')._get_certificate_hash(base64.b64decode(cert_der))
         assert actual_hash == expected_hash
 
@@ -214,9 +215,9 @@ class TestCertificateHash(unittest.TestCase):
                    b'sG1npzUTsaIr9w8ty1beh/2aToCMREvpiPFOXnVV/ovHMU1lFQTNeQ0' \
                    b'OI7elR0nJ0peai30eMpQQ=='
 
-        expected_hash = b'556E1C1784E3B957370B7F544F62C533CB2CA5C1DAE0706FAE' \
-                        b'F00544E1AD2B76FF25CFBE69B1C4E630C3BB0207DF11314C67' \
-                        b'38BCAED7E071D7BFBF2C9DFAB85D'
+        expected_hash = '556E1C1784E3B957370B7F544F62C533CB2CA5C1DAE0706FAEF' \
+                        '00544E1AD2B76FF25CFBE69B1C4E630C3BB0207DF11314C6738' \
+                        'BCAED7E071D7BFBF2C9DFAB85D'
         actual_hash = requests_ntlm.HttpNtlmAuth('', '')._get_certificate_hash(base64.b64decode(cert_der))
         assert actual_hash == expected_hash
 
@@ -232,8 +233,8 @@ class TestCertificateHash(unittest.TestCase):
                    b'MEYCIQCiOsP56Iqo+cHRvCp2toj65Mgxo/PQY1tn+S3WH4RJFQIhAJe' \
                    b'gGQuaPWg6aCWV+2+6pNCNMdg/Nix+mMOJ88qCBNHi'
 
-        expected_hash = b'1EC9AD46DEE9340E4503CFFDB5CD810CB26B778F46BE95D5EA' \
-                        b'F999DCB1C45EDA'
+        expected_hash = '1EC9AD46DEE9340E4503CFFDB5CD810CB26B778F46BE95D5EAF' \
+                        '999DCB1C45EDA'
         actual_hash = requests_ntlm.HttpNtlmAuth('', '')._get_certificate_hash(base64.b64decode(cert_der))
         assert actual_hash == expected_hash
 
@@ -249,8 +250,8 @@ class TestCertificateHash(unittest.TestCase):
                    b'SAAwRQIhAK3rXA4/0i6nm/U7bi6y618Ci2Is8++M3tYIXnEsA7zSAiA' \
                    b'w2s6bJoI+D7Xaey0Hp0gkks9z55y976keIEI+n3qkzw=='
 
-        expected_hash = b'FECF1B2585449990D9E3B2C92D3F597EC8354E124EDA751D94' \
-                        b'837C2C89A2C155'
+        expected_hash = 'FECF1B2585449990D9E3B2C92D3F597EC8354E124EDA751D948' \
+                        '37C2C89A2C155'
         actual_hash = requests_ntlm.HttpNtlmAuth('', '')._get_certificate_hash(base64.b64decode(cert_der))
         assert actual_hash == expected_hash
 
@@ -266,8 +267,8 @@ class TestCertificateHash(unittest.TestCase):
                    b'SAAwRQIgfi8dAxXljCMSvngtDtagGCTGBs7Xxh8Z3WX6ZwJZsHYCIQC' \
                    b'D4iNReh1afXKYC0ipjXWAIkiihnEEycCIQMbkMNst7A=='
 
-        expected_hash = b'D2987AD8F20E8316A831261B74EF7B3E55155D0922E07FFE54' \
-                        b'620806982B68A73A5E3C478BAA5E7714135CB26D980749'
+        expected_hash = 'D2987AD8F20E8316A831261B74EF7B3E55155D0922E07FFE546' \
+                        '20806982B68A73A5E3C478BAA5E7714135CB26D980749'
         actual_hash = requests_ntlm.HttpNtlmAuth('', '')._get_certificate_hash(base64.b64decode(cert_der))
         assert actual_hash == expected_hash
 
@@ -283,8 +284,31 @@ class TestCertificateHash(unittest.TestCase):
                    b'RwAwRAIgRrV7CLpDG7KueyFA3ZDced9dPOcv2Eydx/hgrfxYEcYCIBQ' \
                    b'D35JvzmqU05kSFV5eTvkhkaDObd7V55vokhm31+Li'
 
-        expected_hash = b'E5CB68B2F843D63BF40BCB2007608F8197618392783F2330E5' \
-                        b'EF19A5BD8F0B2FAAC861855FBB63A221CC46FC1E226A072411' \
-                        b'AF175DDE479281E006878B348059'
+        expected_hash = 'E5CB68B2F843D63BF40BCB2007608F8197618392783F2330E5E' \
+                        'F19A5BD8F0B2FAAC861855FBB63A221CC46FC1E226A072411AF' \
+                        '175DDE479281E006878B348059'
         actual_hash = requests_ntlm.HttpNtlmAuth('', '')._get_certificate_hash(base64.b64decode(cert_der))
         assert actual_hash == expected_hash
+
+    def test_a(self):
+        # Manually edited from test_ecdsa_sha512 to change the OID to '1.2.840.10045.4.3.5'
+        cert_der = b'MIIBjjCCATWgAwIBAgIQHVj2AGEwd6pOOSbcf0skQDAKBggqhkjOPQQ' \
+                   b'DBTAVMRMwEQYDVQQDDApTRVJWRVIyMDE2MB4XDTE3MDUzMDA3NTUzOV' \
+                   b'oXDTE4MDUzMDA4MTUzOVowFTETMBEGA1UEAwwKU0VSVkVSMjAxNjBZM' \
+                   b'BMGByqGSM49AgEGCCqGSM49AwEHA0IABL8d9S++MFpfzeH8B3vG/PjA' \
+                   b'AWg8tGJVgsMw9nR+OfC9ltbTUwhB+yPk3JPcfW/bqsyeUgq4//LhaSp' \
+                   b'lOWFNaNqjZzBlMA4GA1UdDwEB/wQEAwIFoDAdBgNVHSUEFjAUBggrBg' \
+                   b'EFBQcDAgYIKwYBBQUHAwEwFQYDVR0RBA4wDIIKU0VSVkVSMjAxNjAdB' \
+                   b'gNVHQ4EFgQUKUkCgLlxoeai0EtQrZth1/BSc5kwCgYIKoZIzj0EAwUD' \
+                   b'RwAwRAIgRrV7CLpDG7KueyFA3ZDced9dPOcv2Eydx/hgrfxYEcYCIBQ' \
+                   b'D35JvzmqU05kSFV5eTvkhkaDObd7V55vokhm31+Li'
+
+        expected_hash = None
+        expected_warning = "Unknown signature algorithm OID '1.2.840.10045.4.3.5', " \
+                           "cannot bind TLS channel to credentials"
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            actual_hash = requests_ntlm.HttpNtlmAuth('', '')._get_certificate_hash(base64.b64decode(cert_der))
+            assert actual_hash == expected_hash
+            assert expected_warning in str(w[-1].message)
