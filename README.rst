@@ -1,3 +1,5 @@
+Custom version of the ``requests-ntlm`` package adding support for automatic Windows authentication.
+
 requests-ntlm
 =============
 
@@ -39,9 +41,11 @@ Requirements
 
 - requests_
 - python-ntlm3_
+- pypiwin32_
 
 .. _requests: https://github.com/kennethreitz/requests/
 .. _python-ntlm3: https://github.com/trustrachel/python-ntlm3
+.. _pypiwin32: https://pypi.org/project/pypiwin32/
 
 Authors
 -------
