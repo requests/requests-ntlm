@@ -1,12 +1,15 @@
-import hashlib
+import binascii
 import sys
 import warnings
 
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.exceptions import UnsupportedAlgorithm
 from ntlm_auth import ntlm
-from pyasn1.codec.der.decoder import decode as cert_decode
-from pyasn1_modules import rfc2459
 from requests.auth import AuthBase
 from requests.packages.urllib3 import HTTPResponse
+
 
 class HttpNtlmAuth(AuthBase):
     """
@@ -197,39 +200,27 @@ class HttpNtlmAuth(AuthBase):
 
     def _get_certificate_hash(self, certificate_der):
         # https://tools.ietf.org/html/rfc5929#section-4.1
-        # If the algorithm is MD5 or SHA1 use SHA256
-        # Otherwise use that algorithm
-        algorithm_mapping = {
-            # https://tools.ietf.org/html/rfc3279
-            # https://tools.ietf.org/html/rfc5758
-            # RSA
-            '1.2.840.113549.1.1.4': hashlib.sha256,  # md5WithRSAEncryption
-            '1.2.840.113549.1.1.5': hashlib.sha256,  # sha1WithRSAEncryption
-            '1.2.840.113549.1.1.11': hashlib.sha256,  # sha256WithRSAEncryption
-            '1.2.840.113549.1.1.12': hashlib.sha384,  # sha384WithRSAEncryption
-            '1.2.840.113549.1.1.13': hashlib.sha512,  # sha512WithRSAEncryption
+        cert = x509.load_der_x509_certificate(certificate_der, default_backend())
 
-            # DSA
-            '1.2.840.10040.4.3': hashlib.sha256,  # dsa-with-sha1
-
-            # ECDSA
-            '1.2.840.10045.4.1': hashlib.sha256,  # ecdsa-with-sha1
-            '1.2.840.10045.4.3.2': hashlib.sha256,  # ecdsa-with-sha256
-            '1.2.840.10045.4.3.3': hashlib.sha384,  # ecdsa-with-sha384
-            '1.2.840.10045.4.3.4': hashlib.sha512,  # ecdsa-with-sha512
-        }
-
-        cert = cert_decode(certificate_der, asn1Spec=rfc2459.Certificate())[0]
-        signatureOID = str(cert['signatureAlgorithm'][0])
-        algorithm = algorithm_mapping.get(signatureOID, None)
-        if algorithm:
-            hash_object = algorithm(certificate_der)
-            certificate_hash = hash_object.hexdigest().upper()
-            return certificate_hash
-        else:
-            warnings.warn("Unknown signature algorithm OID '%s', cannot bind TLS channel to credentials" % signatureOID,
-                          UnknownSignatureAlgorithmOID)
+        try:
+            hash_algorithm = cert.signature_hash_algorithm
+        except UnsupportedAlgorithm as ex:
+            warnings.warn("Failed to get signature algorithm from certificate, "
+                          "unable to pass channel bindings: %s" % str(ex), UnknownSignatureAlgorithmOID)
             return None
+
+        # if the cert signature algorithm is either md5 or sha1 then use sha256
+        # otherwise use the signature algorithm
+        if hash_algorithm.name in ['md5', 'sha1']:
+            digest = hashes.Hash(hashes.SHA256(), default_backend())
+        else:
+            digest = hashes.Hash(hash_algorithm, default_backend())
+
+        digest.update(certificate_der)
+        certificate_hash_bytes = digest.finalize()
+        certificate_hash = binascii.hexlify(certificate_hash_bytes).decode().upper()
+
+        return certificate_hash
 
     def __call__(self, r):
         # we must keep the connection because NTLM authenticates the

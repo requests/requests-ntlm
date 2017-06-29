@@ -4,5 +4,4 @@ flask
 pytest
 pytest-cov
 wheel
-pyasn1
-pyasn1-modules
+cryptography

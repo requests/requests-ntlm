@@ -290,7 +290,7 @@ class TestCertificateHash(unittest.TestCase):
         actual_hash = requests_ntlm.HttpNtlmAuth('', '')._get_certificate_hash(base64.b64decode(cert_der))
         assert actual_hash == expected_hash
 
-    def test_a(self):
+    def test_invalid_signature_algorithm(self):
         # Manually edited from test_ecdsa_sha512 to change the OID to '1.2.840.10045.4.3.5'
         cert_der = b'MIIBjjCCATWgAwIBAgIQHVj2AGEwd6pOOSbcf0skQDAKBggqhkjOPQQ' \
                    b'DBTAVMRMwEQYDVQQDDApTRVJWRVIyMDE2MB4XDTE3MDUzMDA3NTUzOV' \
@@ -304,8 +304,8 @@ class TestCertificateHash(unittest.TestCase):
                    b'D35JvzmqU05kSFV5eTvkhkaDObd7V55vokhm31+Li'
 
         expected_hash = None
-        expected_warning = "Unknown signature algorithm OID '1.2.840.10045.4.3.5', " \
-                           "cannot bind TLS channel to credentials"
+        expected_warning = "Failed to get signature algorithm from " \
+                           "certificate, unable to pass channel bindings:"
 
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
