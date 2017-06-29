@@ -7,7 +7,7 @@ setup(
     name='requests_ntlm',
     version='1.1.0',
     packages=[ 'requests_ntlm' ],
-    install_requires=[ 'requests>=2.0.0', 'ntlm-auth>=1.0.2', 'cryptography' ],
+    install_requires=[ 'requests>=2.0.0', 'ntlm-auth>=1.0.2', 'cryptography>=1.3' ],
     provides=[ 'requests_ntlm' ],
     author='Ben Toews',
     author_email='mastahyeti@gmail.com',

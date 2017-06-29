@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.exceptions import UnsupportedAlgorithm
 from ntlm_auth import ntlm
 from requests.auth import AuthBase
-from requests.packages.urllib3 import HTTPResponse
+from requests.packages.urllib3.response import HTTPResponse
 
 
 class HttpNtlmAuth(AuthBase):
@@ -24,6 +24,7 @@ class HttpNtlmAuth(AuthBase):
         :param str username: Username in 'domain\\username' format
         :param str password: Password
         :param str session: Unused. Kept for backwards-compatibility.
+        :param bool send_cbt: Will send the channel bindings over a HTTPS channel (Default: True)
         """
         if ntlm is None:
             raise Exception("NTLM libraries unavailable")
@@ -177,50 +178,30 @@ class HttpNtlmAuth(AuthBase):
         :param response: The original 401 response from the server
         :return: The hash of the DER encoded certificate at the request_url or None if not a HTTPS endpoint
         """
-        certificate_hash = None
-        raw_response = response.raw
+        if self.send_cbt:
+            certificate_hash = None
+            raw_response = response.raw
 
-        if isinstance(raw_response, HTTPResponse) and self.send_cbt:
-            if sys.version_info > (3, 0):
-                socket = raw_response._fp.fp.raw._sock
-            else:
-                socket = raw_response._fp.fp._sock
+            if isinstance(raw_response, HTTPResponse):
+                if sys.version_info > (3, 0):
+                    socket = raw_response._fp.fp.raw._sock
+                else:
+                    socket = raw_response._fp.fp._sock
 
-            try:
-                server_certificate = socket.getpeercert(True)
-            except AttributeError:
-                pass
+                try:
+                    server_certificate = socket.getpeercert(True)
+                except AttributeError:
+                    pass
+                else:
+                    certificate_hash = _get_certificate_hash(server_certificate)
             else:
-                certificate_hash = self._get_certificate_hash(server_certificate)
+                warnings.warn(
+                    "Requests is running with a non urllib3 backend, cannot retrieve server certificate for CBT",
+                    NoCertificateRetrievedWarning)
+
+            return certificate_hash
         else:
-            warnings.warn("Requests is running with a non urllib3 backend, cannot retrieve server certificate for CBT",
-                          NoCertificateRetrievedWarning)
-
-        return certificate_hash
-
-    def _get_certificate_hash(self, certificate_der):
-        # https://tools.ietf.org/html/rfc5929#section-4.1
-        cert = x509.load_der_x509_certificate(certificate_der, default_backend())
-
-        try:
-            hash_algorithm = cert.signature_hash_algorithm
-        except UnsupportedAlgorithm as ex:
-            warnings.warn("Failed to get signature algorithm from certificate, "
-                          "unable to pass channel bindings: %s" % str(ex), UnknownSignatureAlgorithmOID)
             return None
-
-        # if the cert signature algorithm is either md5 or sha1 then use sha256
-        # otherwise use the signature algorithm
-        if hash_algorithm.name in ['md5', 'sha1']:
-            digest = hashes.Hash(hashes.SHA256(), default_backend())
-        else:
-            digest = hashes.Hash(hash_algorithm, default_backend())
-
-        digest.update(certificate_der)
-        certificate_hash_bytes = digest.finalize()
-        certificate_hash = binascii.hexlify(certificate_hash_bytes).decode().upper()
-
-        return certificate_hash
 
     def __call__(self, r):
         # we must keep the connection because NTLM authenticates the
@@ -243,6 +224,31 @@ def _auth_type_from_header(header):
         return 'Negotiate'
 
     return None
+
+
+def _get_certificate_hash(certificate_der):
+    # https://tools.ietf.org/html/rfc5929#section-4.1
+    cert = x509.load_der_x509_certificate(certificate_der, default_backend())
+
+    try:
+        hash_algorithm = cert.signature_hash_algorithm
+    except UnsupportedAlgorithm as ex:
+        warnings.warn("Failed to get signature algorithm from certificate, "
+                      "unable to pass channel bindings: %s" % str(ex), UnknownSignatureAlgorithmOID)
+        return None
+
+    # if the cert signature algorithm is either md5 or sha1 then use sha256
+    # otherwise use the signature algorithm
+    if hash_algorithm.name in ['md5', 'sha1']:
+        digest = hashes.Hash(hashes.SHA256(), default_backend())
+    else:
+        digest = hashes.Hash(hash_algorithm, default_backend())
+
+    digest.update(certificate_der)
+    certificate_hash_bytes = digest.finalize()
+    certificate_hash = binascii.hexlify(certificate_hash_bytes).decode().upper()
+
+    return certificate_hash
 
 
 class NoCertificateRetrievedWarning(Warning):
