@@ -5,9 +5,9 @@ from setuptools import setup
 
 setup(
     name='requests_ntlm',
-    version='1.0.0',
+    version='1.1.0',
     packages=[ 'requests_ntlm' ],
-    install_requires=[ 'requests>=2.0.0', 'ntlm-auth>=1.0.2' ],
+    install_requires=[ 'requests>=2.0.0', 'ntlm-auth>=1.0.2', 'cryptography>=1.3' ],
     provides=[ 'requests_ntlm' ],
     author='Ben Toews',
     author_email='mastahyeti@gmail.com',

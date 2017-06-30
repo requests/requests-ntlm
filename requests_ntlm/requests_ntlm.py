@@ -1,10 +1,15 @@
-import hashlib
+import binascii
 import sys
 import warnings
 
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.exceptions import UnsupportedAlgorithm
 from ntlm_auth import ntlm
 from requests.auth import AuthBase
 from requests.packages.urllib3.response import HTTPResponse
+
 
 class HttpNtlmAuth(AuthBase):
     """
@@ -13,12 +18,13 @@ class HttpNtlmAuth(AuthBase):
     Supports pass-the-hash.
     """
 
-    def __init__(self, username, password, session=None):
+    def __init__(self, username, password, session=None, send_cbt=True):
         """Create an authentication handler for NTLM over HTTP.
 
         :param str username: Username in 'domain\\username' format
         :param str password: Password
         :param str session: Unused. Kept for backwards-compatibility.
+        :param bool send_cbt: Will send the channel bindings over a HTTPS channel (Default: True)
         """
         if ntlm is None:
             raise Exception("NTLM libraries unavailable")
@@ -33,6 +39,7 @@ class HttpNtlmAuth(AuthBase):
         if self.domain:
             self.domain = self.domain.upper()
         self.password = password
+        self.send_cbt = send_cbt
 
         # This exposes the encrypt/decrypt methods used to encrypt and decrypt messages
         # sent after ntlm authentication. These methods are utilised by libraries that
@@ -42,7 +49,7 @@ class HttpNtlmAuth(AuthBase):
     def retry_using_http_NTLM_auth(self, auth_header_field, auth_header,
                                    response, auth_type, args):
         # Get the certificate of the server if using HTTPS for CBT
-        server_certificate_hash = _get_server_cert(response)
+        server_certificate_hash = self._get_server_cert(response)
 
         """Attempt to authenticate using HTTP NTLM challenge/response."""
         if auth_header in response.request.headers:
@@ -160,6 +167,42 @@ class HttpNtlmAuth(AuthBase):
 
         return r
 
+    def _get_server_cert(self, response):
+        """
+        Get the certificate at the request_url and return it as a hash. Will get the raw socket from the
+        original response from the server. This socket is then checked if it is an SSL socket and then used to
+        get the hash of the certificate. The certificate hash is then used with NTLMv2 authentication for
+        Channel Binding Tokens support. If the raw object is not a urllib3 HTTPReponse (default with requests)
+        then no certificate will be returned.
+
+        :param response: The original 401 response from the server
+        :return: The hash of the DER encoded certificate at the request_url or None if not a HTTPS endpoint
+        """
+        if self.send_cbt:
+            certificate_hash = None
+            raw_response = response.raw
+
+            if isinstance(raw_response, HTTPResponse):
+                if sys.version_info > (3, 0):
+                    socket = raw_response._fp.fp.raw._sock
+                else:
+                    socket = raw_response._fp.fp._sock
+
+                try:
+                    server_certificate = socket.getpeercert(True)
+                except AttributeError:
+                    pass
+                else:
+                    certificate_hash = _get_certificate_hash(server_certificate)
+            else:
+                warnings.warn(
+                    "Requests is running with a non urllib3 backend, cannot retrieve server certificate for CBT",
+                    NoCertificateRetrievedWarning)
+
+            return certificate_hash
+        else:
+            return None
+
     def __call__(self, r):
         # we must keep the connection because NTLM authenticates the
         # connection, not single requests
@@ -182,37 +225,35 @@ def _auth_type_from_header(header):
 
     return None
 
-def _get_server_cert(response):
-    """
-    Get the certificate at the request_url and return it as a SHA256 hash. Will get the raw socket from the
-    original response from the server. This socket is then checked if it is an SSL socket and then used to
-    get the hash of the certificate. The certificate hash is then used with NTLMv2 authentication for
-    Channel Binding Tokens support. If the raw object is not a urllib3 HTTPReponse (default with requests)
-    then no certificate will be returned.
 
-    :param response: The original 401 response from the server
-    :return: SHA256 hash of the DER encoded certificate at the request_url or None if not a HTTPS endpoint
-    """
-    certificate_hash = None
-    raw_response = response.raw
+def _get_certificate_hash(certificate_der):
+    # https://tools.ietf.org/html/rfc5929#section-4.1
+    cert = x509.load_der_x509_certificate(certificate_der, default_backend())
 
-    if isinstance(raw_response, HTTPResponse):
-        if sys.version_info > (3, 0):
-            socket = raw_response._fp.fp.raw._sock
-        else:
-            socket = raw_response._fp.fp._sock
+    try:
+        hash_algorithm = cert.signature_hash_algorithm
+    except UnsupportedAlgorithm as ex:
+        warnings.warn("Failed to get signature algorithm from certificate, "
+                      "unable to pass channel bindings: %s" % str(ex), UnknownSignatureAlgorithmOID)
+        return None
 
-        try:
-            server_certificate = socket.getpeercert(True)
-        except AttributeError:
-            pass
-        else:
-            hash_object = hashlib.sha256(server_certificate)
-            certificate_hash = hash_object.hexdigest().upper()
+    # if the cert signature algorithm is either md5 or sha1 then use sha256
+    # otherwise use the signature algorithm
+    if hash_algorithm.name in ['md5', 'sha1']:
+        digest = hashes.Hash(hashes.SHA256(), default_backend())
     else:
-        warnings.warn("Requests is running with a non urllib3 backend, cannot retrieve server certificate for CBT", NoCertificateRetrievedWarning)
+        digest = hashes.Hash(hash_algorithm, default_backend())
+
+    digest.update(certificate_der)
+    certificate_hash_bytes = digest.finalize()
+    certificate_hash = binascii.hexlify(certificate_hash_bytes).decode().upper()
 
     return certificate_hash
 
+
 class NoCertificateRetrievedWarning(Warning):
+    pass
+
+
+class UnknownSignatureAlgorithmOID(Warning):
     pass
