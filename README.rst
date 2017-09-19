@@ -32,7 +32,7 @@ NTLM challenge-response.
     from requests_ntlm import HttpNtlmAuth
 
     session = requests.Session()
-    session.auth = HttpNtlmAuth('domain\\username','password', session)
+    session.auth = HttpNtlmAuth('domain\\username','password')
     session.get('http://ntlm_protected_site.com')
 
 Installation
