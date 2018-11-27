@@ -18,13 +18,14 @@ class HttpNtlmAuth(AuthBase):
     Supports pass-the-hash.
     """
 
-    def __init__(self, username, password, session=None, send_cbt=True):
+    def __init__(self, username, password, session=None, send_cbt=True, ntlm_compatibility=3):
         """Create an authentication handler for NTLM over HTTP.
 
         :param str username: Username in 'domain\\username' format
         :param str password: Password
         :param str session: Unused. Kept for backwards-compatibility.
         :param bool send_cbt: Will send the channel bindings over a HTTPS channel (Default: True)
+        :param int ntlm_compatibility: The Lan Manager Compatibility Level (Default: 3)
         """
         if ntlm is None:
             raise Exception("NTLM libraries unavailable")
@@ -40,6 +41,7 @@ class HttpNtlmAuth(AuthBase):
             self.domain = self.domain.upper()
         self.password = password
         self.send_cbt = send_cbt
+        self.ntlm_compatibility = ntlm_compatibility
 
         # This exposes the encrypt/decrypt methods used to encrypt and decrypt messages
         # sent after ntlm authentication. These methods are utilised by libraries that
@@ -71,7 +73,7 @@ class HttpNtlmAuth(AuthBase):
 
         # ntlm returns the headers as a base64 encoded bytestring. Convert to
         # a string.
-        context = ntlm.Ntlm()
+        context = ntlm.Ntlm(ntlm_compatibility=self.ntlm_compatibility)
         negotiate_message = context.create_negotiate_message(self.domain).decode('ascii')
         auth = u'%s %s' % (auth_type, negotiate_message)
         request.headers[auth_header] = auth
