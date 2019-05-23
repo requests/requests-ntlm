@@ -71,7 +71,11 @@ class HttpNtlmAuth(AuthBase):
 
         # ntlm returns the headers as a base64 encoded bytestring. Convert to
         # a string.
-        context = ntlm.Ntlm()
+        context = ntlm.NtlmContext(
+            username=self.username, 
+            password=self.password, 
+            domain=self.domain or None
+        )
         negotiate_message = context.create_negotiate_message(self.domain).decode('ascii')
         auth = u'%s %s' % (auth_type, negotiate_message)
         request.headers[auth_header] = auth
