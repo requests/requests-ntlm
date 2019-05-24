@@ -1,3 +1,4 @@
+import base64
 import binascii
 import sys
 import warnings
@@ -76,7 +77,7 @@ class HttpNtlmAuth(AuthBase):
             password=self.password, 
             domain=self.domain or None
         )
-        negotiate_message = context.create_negotiate_message(self.domain).decode('ascii')
+        negotiate_message = base64.b64encode(context.step()).decode('ascii')
         auth = u'%s %s' % (auth_type, negotiate_message)
         request.headers[auth_header] = auth
 
