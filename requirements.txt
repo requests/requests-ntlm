@@ -3,5 +3,5 @@ ntlm-auth>=1.2.0
 cryptography>=1.3
 flask
 pytest
-pytest-cov
+pytest-cov<2.6
 wheel
