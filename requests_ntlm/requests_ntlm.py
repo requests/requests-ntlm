@@ -73,9 +73,9 @@ class HttpNtlmAuth(AuthBase):
         # ntlm returns the headers as a base64 encoded bytestring. Convert to
         # a string.
         context = ntlm.NtlmContext(
-            username=self.username, 
-            password=self.password, 
-            domain=self.domain or None
+            username=self.username,
+            password=self.password,
+            domain=self.domain or None,
         )
         negotiate_message = base64.b64encode(context.step()).decode('ascii')
         auth = u'%s %s' % (auth_type, negotiate_message)
@@ -115,17 +115,12 @@ class HttpNtlmAuth(AuthBase):
         ).strip()
 
         # Parse the challenge in the ntlm context
-        context.parse_challenge_message(ntlm_header_value[len(auth_strip):])
+        challenge_token = base64.b64decode(ntlm_header_value[len(auth_strip):])
 
         # build response
         # Get the response based on the challenge message
-        authenticate_message = context.create_authenticate_message(
-            self.username,
-            self.password,
-            self.domain,
-            server_certificate_hash=server_certificate_hash
-        )
-        authenticate_message = authenticate_message.decode('ascii')
+        context._server_certificate_hash = server_certificate_hash
+        authenticate_message = base64.b64encode(context.step(challenge_token)).decode('ascii')
         auth = u'%s %s' % (auth_type, authenticate_message)
         request.headers[auth_header] = auth
 
@@ -136,7 +131,7 @@ class HttpNtlmAuth(AuthBase):
         response3.history.append(response2)
 
         # Get the session_security object created by ntlm-auth for signing and sealing of messages
-        self.session_security = context.session_security
+        self.session_security = context._session_security
 
         return response3
 
