@@ -28,16 +28,7 @@ class HttpNtlmAuth(AuthBase):
         :param str session: Unused. Kept for backwards-compatibility.
         :param bool send_cbt: Will send the channel bindings over a HTTPS channel (Default: True)
         """
-        # parse the username
-        try:
-            self.domain, self.username = username.split('\\', 1)
-        except ValueError:
-            self.username = username
-            self.domain = ''
-
-        if self.domain:
-            self.domain = self.domain.upper()
-        self.username = self.domain + "\\" + self.username
+        self.username = username
         self.password = password
         self.send_cbt = send_cbt
 
