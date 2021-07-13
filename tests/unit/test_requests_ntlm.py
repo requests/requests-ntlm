@@ -3,6 +3,8 @@ import unittest
 import requests
 import requests_ntlm
 import warnings
+import hashlib
+import binascii
 
 from tests.test_utils import domain, username, password
 
@@ -13,7 +15,8 @@ class TestRequestsNtlm(unittest.TestCase):
         self.test_server_url        = 'http://localhost:5000/'
         self.test_server_username   = '%s\\%s' % (domain, username)
         self.test_server_password   = password
-        self.auth_types = ['ntlm','negotiate','both']
+        self.auth_types = ['ntlm', 'negotiate', 'both']
+        self.hash = hashlib.new('md4', password.encode('utf-16le')).hexdigest()
 
     def test_requests_ntlm(self):
         for auth_type in self.auth_types:
@@ -22,6 +25,17 @@ class TestRequestsNtlm(unittest.TestCase):
                 auth = requests_ntlm.HttpNtlmAuth(
                     self.test_server_username,\
                     self.test_server_password))
+
+            self.assertEqual(res.status_code,200, msg='auth_type ' + auth_type)
+
+    def test_requests_ntlm_hash(self):
+        # Test authenticating using an NTLM hash
+        for auth_type in self.auth_types:
+            res = requests.get(\
+                url  = self.test_server_url + auth_type,\
+                auth = requests_ntlm.HttpNtlmAuth(
+                    self.test_server_username,\
+                    "0" * 32 + ":" + self.hash))
 
             self.assertEqual(res.status_code,200, msg='auth_type ' + auth_type)
 
