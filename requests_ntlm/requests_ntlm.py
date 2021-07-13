@@ -1,14 +1,16 @@
 import binascii
 import sys
 import warnings
+import base64
+import types
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.exceptions import UnsupportedAlgorithm
-from ntlm_auth import ntlm
 from requests.auth import AuthBase
 from requests.packages.urllib3.response import HTTPResponse
+import spnego
 
 
 class HttpNtlmAuth(AuthBase):
@@ -26,9 +28,6 @@ class HttpNtlmAuth(AuthBase):
         :param str session: Unused. Kept for backwards-compatibility.
         :param bool send_cbt: Will send the channel bindings over a HTTPS channel (Default: True)
         """
-        if ntlm is None:
-            raise Exception("NTLM libraries unavailable")
-
         # parse the username
         try:
             self.domain, self.username = username.split('\\', 1)
@@ -38,6 +37,7 @@ class HttpNtlmAuth(AuthBase):
 
         if self.domain:
             self.domain = self.domain.upper()
+        self.username = self.domain + "\\" + self.username
         self.password = password
         self.send_cbt = send_cbt
 
@@ -69,11 +69,11 @@ class HttpNtlmAuth(AuthBase):
         response.raw.release_conn()
         request = response.request.copy()
 
-        # ntlm returns the headers as a base64 encoded bytestring. Convert to
-        # a string.
-        context = ntlm.Ntlm()
-        negotiate_message = context.create_negotiate_message(self.domain).decode('ascii')
+        client = spnego.client(self.username, self.password, protocol='ntlm')
+        # Perform the first step of the NTLM authentication
+        negotiate_message = base64.b64encode(client.step()).decode()
         auth = u'%s %s' % (auth_type, negotiate_message)
+
         request.headers[auth_header] = auth
 
         # A streaming response breaks authentication.
@@ -109,29 +109,38 @@ class HttpNtlmAuth(AuthBase):
             if s.startswith(auth_strip)
         ).strip()
 
-        # Parse the challenge in the ntlm context
-        context.parse_challenge_message(ntlm_header_value[len(auth_strip):])
+        # Parse the challenge in the ntlm context and perform
+        # the second step of authentication
+        val = base64.b64decode(ntlm_header_value[len(auth_strip):].encode())
+        authenticate_message = base64.b64encode(client.step(val))
 
-        # build response
-        # Get the response based on the challenge message
-        authenticate_message = context.create_authenticate_message(
-            self.username,
-            self.password,
-            self.domain,
-            server_certificate_hash=server_certificate_hash
-        )
         authenticate_message = authenticate_message.decode('ascii')
         auth = u'%s %s' % (auth_type, authenticate_message)
         request.headers[auth_header] = auth
 
         response3 = response2.connection.send(request, **args)
-
         # Update the history.
         response3.history.append(response)
         response3.history.append(response2)
 
-        # Get the session_security object created by ntlm-auth for signing and sealing of messages
-        self.session_security = context.session_security
+        self.session_security = client
+        # The `wrap` and `unwrap` functions work differently to `ntlm-auth`,
+        # so they must be monkeypatched
+
+        def wrap(self, message):
+            from spnego._ntlm_raw.security import seal
+            return seal(self._context_attr, self._handle_out,
+                        self._sign_key_out, self._seq_num_out,
+                        message)
+
+        def unwrap(self, message, signature):
+            msg = self._handle_in.update(message)
+            self.verify(msg, signature)
+            return msg
+
+        # Manually bind functions to the object instances
+        self.session_security.wrap = types.MethodType(wrap, self.session_security)
+        self.session_security.unwrap = types.MethodType(unwrap, self.session_security)
 
         return response3
 

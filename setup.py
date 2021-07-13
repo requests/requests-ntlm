@@ -7,7 +7,7 @@ setup(
     name="requests_ntlm",
     version="1.2.0",
     packages=["requests_ntlm"],
-    install_requires=["requests>=2.0.0", "ntlm-auth>=1.0.2", "cryptography>=1.3"],
+    install_requires=["requests>=2.0.0", "pyspnego>=0.1.6", "cryptography>=1.3"],
     python_requires=">=3.7",
     provides=["requests_ntlm"],
     author="Ben Toews",
