@@ -44,7 +44,7 @@ Requirements
 - pyspnego_
 
 .. _requests: https://github.com/kennethreitz/requests/
-.. _ntlm-auth: https://github.com/jborean93/pyspnego/
+.. _pyspnego: https://github.com/jborean93/pyspnego/
 
 Authors
 -------
