@@ -41,10 +41,10 @@ Requirements
 ------------
 
 - requests_
-- ntlm-auth_
+- pyspnego_
 
 .. _requests: https://github.com/kennethreitz/requests/
-.. _ntlm-auth: https://github.com/jborean93/ntlm-auth
+.. _ntlm-auth: https://github.com/jborean93/pyspnego/
 
 Authors
 -------

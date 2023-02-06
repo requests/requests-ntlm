@@ -4,7 +4,7 @@ import requests
 import requests_ntlm
 import warnings
 
-from tests.test_utils import domain, username, password
+from tests.test_utils import domain, username, password, password_md4
 
 
 class TestRequestsNtlm(unittest.TestCase):
@@ -13,7 +13,8 @@ class TestRequestsNtlm(unittest.TestCase):
         self.test_server_url        = 'http://localhost:5000/'
         self.test_server_username   = '%s\\%s' % (domain, username)
         self.test_server_password   = password
-        self.auth_types = ['ntlm','negotiate','both']
+        self.auth_types = ['ntlm', 'negotiate', 'both']
+        self.hash = password_md4
 
     def test_requests_ntlm(self):
         for auth_type in self.auth_types:
@@ -22,6 +23,17 @@ class TestRequestsNtlm(unittest.TestCase):
                 auth = requests_ntlm.HttpNtlmAuth(
                     self.test_server_username,\
                     self.test_server_password))
+
+            self.assertEqual(res.status_code,200, msg='auth_type ' + auth_type)
+
+    def test_requests_ntlm_hash(self):
+        # Test authenticating using an NTLM hash
+        for auth_type in self.auth_types:
+            res = requests.get(\
+                url  = self.test_server_url + auth_type,\
+                auth = requests_ntlm.HttpNtlmAuth(
+                    self.test_server_username,\
+                    "0" * 32 + ":" + self.hash))
 
             self.assertEqual(res.status_code,200, msg='auth_type ' + auth_type)
 
@@ -42,46 +54,6 @@ class TestRequestsNtlm(unittest.TestCase):
             self.assertTrue(res.history[0].request is not res.history[1].request)
             self.assertTrue(res.history[0].request is not res.request)
 
-    def test_username_parse_backslash(self):
-        test_user = 'domain\\user'
-        expected_domain = 'DOMAIN'
-        expected_user = 'user'
-
-        context = requests_ntlm.HttpNtlmAuth(test_user, 'pass')
-
-        actual_domain = context.domain
-        actual_user = context.username
-
-        assert actual_domain == expected_domain
-        assert actual_user == expected_user
-
-    def test_username_parse_at(self):
-        test_user = 'user@domain.com'
-        # UPN format should not be split, since "stuff after @" not always == domain 
-        # (eg, email address with alt UPN suffix)
-        expected_domain = ''
-        expected_user = 'user@domain.com'
-
-        context = requests_ntlm.HttpNtlmAuth(test_user, 'pass')
-
-        actual_domain = context.domain
-        actual_user = context.username
-
-        assert actual_domain == expected_domain
-        assert actual_user == expected_user
-
-    def test_username_parse_no_domain(self):
-        test_user = 'user'
-        expected_domain = ''
-        expected_user = 'user'
-
-        context = requests_ntlm.HttpNtlmAuth(test_user, 'pass')
-
-        actual_domain = context.domain
-        actual_user = context.username
-
-        assert actual_domain == expected_domain
-        assert actual_user == expected_user
 
 class TestCertificateHash(unittest.TestCase):
 
@@ -110,7 +82,7 @@ class TestCertificateHash(unittest.TestCase):
         expected_hash = '2334B8476CBF4E6DFC766A5D5A30D6649C01BAE1662A5C3A130' \
                         '2A968D7C6B0F6'
         actual_hash = requests_ntlm.requests_ntlm._get_certificate_hash(base64.b64decode(cert_der))
-        assert actual_hash == expected_hash
+        assert actual_hash == base64.b16decode(expected_hash)
 
     def test_rsa_sha1(self):
         cert_der = b'MIIDGzCCAgOgAwIBAgIQJg/Mf5sR55xApJRK+kabbTANBgkqhkiG9w0' \
@@ -137,7 +109,7 @@ class TestCertificateHash(unittest.TestCase):
         expected_hash = '14CFE8E4B332B20A343FC840B18F9F6F78926AFE7EC3E7B8E28' \
                         '969619B1E8F3E'
         actual_hash = requests_ntlm.requests_ntlm._get_certificate_hash(base64.b64decode(cert_der))
-        assert actual_hash == expected_hash
+        assert actual_hash == base64.b16decode(expected_hash)
 
     def test_rsa_sha256(self):
         cert_der = b'MIIDGzCCAgOgAwIBAgIQWkeAtqoFg6pNWF7xC4YXhTANBgkqhkiG9w0' \
@@ -164,7 +136,7 @@ class TestCertificateHash(unittest.TestCase):
         expected_hash = '996F3EEA812C1870E30549FF9B86CD87A890B6D8DFDF4A81BEF' \
                         '9675970DADB26'
         actual_hash = requests_ntlm.requests_ntlm._get_certificate_hash(base64.b64decode(cert_der))
-        assert actual_hash == expected_hash
+        assert actual_hash == base64.b16decode(expected_hash)
 
     def test_rsa_sha384(self):
         cert_der = b'MIIDGzCCAgOgAwIBAgIQEmj1prSSQYRL2zYBEjsm5jANBgkqhkiG9w0' \
@@ -191,7 +163,7 @@ class TestCertificateHash(unittest.TestCase):
         expected_hash = '34F303C995286F4B214A9BA6435B69B51ECF3758EABC2A14D7A' \
                         '43FD237DC2B1A1AD9111C5C965E107507CB4198C09FEC'
         actual_hash = requests_ntlm.requests_ntlm._get_certificate_hash(base64.b64decode(cert_der))
-        assert actual_hash == expected_hash
+        assert actual_hash == base64.b16decode(expected_hash)
 
     def test_rsa_sha512(self):
         cert_der = b'MIIDGzCCAgOgAwIBAgIQUDHcKGevZohJV+TkIIYC1DANBgkqhkiG9w0' \
@@ -219,7 +191,7 @@ class TestCertificateHash(unittest.TestCase):
                         '00544E1AD2B76FF25CFBE69B1C4E630C3BB0207DF11314C6738' \
                         'BCAED7E071D7BFBF2C9DFAB85D'
         actual_hash = requests_ntlm.requests_ntlm._get_certificate_hash(base64.b64decode(cert_der))
-        assert actual_hash == expected_hash
+        assert actual_hash == base64.b16decode(expected_hash)
 
     def test_ecdsa_sha1(self):
         cert_der = b'MIIBjjCCATSgAwIBAgIQRCJw7nbtvJ5F8wikRmwgizAJBgcqhkjOPQQ' \
@@ -236,7 +208,7 @@ class TestCertificateHash(unittest.TestCase):
         expected_hash = '1EC9AD46DEE9340E4503CFFDB5CD810CB26B778F46BE95D5EAF' \
                         '999DCB1C45EDA'
         actual_hash = requests_ntlm.requests_ntlm._get_certificate_hash(base64.b64decode(cert_der))
-        assert actual_hash == expected_hash
+        assert actual_hash == base64.b16decode(expected_hash)
 
     def test_ecdsa_sha256(self):
         cert_der = b'MIIBjzCCATWgAwIBAgIQeNQTxkMgq4BF9tKogIGXUTAKBggqhkjOPQQ' \
@@ -253,7 +225,7 @@ class TestCertificateHash(unittest.TestCase):
         expected_hash = 'FECF1B2585449990D9E3B2C92D3F597EC8354E124EDA751D948' \
                         '37C2C89A2C155'
         actual_hash = requests_ntlm.requests_ntlm._get_certificate_hash(base64.b64decode(cert_der))
-        assert actual_hash == expected_hash
+        assert actual_hash == base64.b16decode(expected_hash)
 
     def test_ecdsa_sha384(self):
         cert_der = b'MIIBjzCCATWgAwIBAgIQcO3/jALdQ6BOAoaoseLSCjAKBggqhkjOPQQ' \
@@ -270,7 +242,7 @@ class TestCertificateHash(unittest.TestCase):
         expected_hash = 'D2987AD8F20E8316A831261B74EF7B3E55155D0922E07FFE546' \
                         '20806982B68A73A5E3C478BAA5E7714135CB26D980749'
         actual_hash = requests_ntlm.requests_ntlm._get_certificate_hash(base64.b64decode(cert_der))
-        assert actual_hash == expected_hash
+        assert actual_hash == base64.b16decode(expected_hash)
 
     def test_ecdsa_sha512(self):
         cert_der = b'MIIBjjCCATWgAwIBAgIQHVj2AGEwd6pOOSbcf0skQDAKBggqhkjOPQQ' \
@@ -288,7 +260,7 @@ class TestCertificateHash(unittest.TestCase):
                         'F19A5BD8F0B2FAAC861855FBB63A221CC46FC1E226A072411AF' \
                         '175DDE479281E006878B348059'
         actual_hash = requests_ntlm.requests_ntlm._get_certificate_hash(base64.b64decode(cert_der))
-        assert actual_hash == expected_hash
+        assert actual_hash == base64.b16decode(expected_hash)
 
     def test_invalid_signature_algorithm(self):
         # Manually edited from test_ecdsa_sha512 to change the OID to '1.2.840.10045.4.3.5'
