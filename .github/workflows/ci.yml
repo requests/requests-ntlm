@@ -1,0 +1,86 @@
+name: Test requests-ntlm
+on:
+  push:
+    branches:
+    - master
+    paths-ignore:
+    - LICENSE
+    - README.rst
+
+  pull_request:
+    branches:
+    - master
+    paths-ignore:
+    - LICENSE
+    - README.rst
+
+  release:
+    types:
+    - published
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - python-version: '3.7'
+        - python-version: '3.8'
+        - python-version: '3.9'
+        - python-version: '3.10'
+        - python-version: '3.11'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Run tests
+      shell: bash
+      run: |
+        python -m pip install -U pip setuptools
+        python -m pip install .
+        python -m pip install -r requirements.txt
+
+        python -m tests.test_server &
+
+        python -m pytest \
+            --ignore=tests/functional/test_function.py \
+            --ignore=tests/test_server.py \
+            --cov requests_ntlm \
+            --cov-report term-missing \
+            tests
+
+  publish:
+    name: publish
+    needs:
+    - test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Installing baseline packages
+      run: |
+        echo "Installing baseline pip packages"
+        python -m pip install --upgrade pip setuptools wheel
+
+    - name: Build package
+      run: python setup.py sdist bdist_wheel
+
+    - name: Capture Wheel and SDist
+      uses: actions/upload-artifact@v3
+      with:
+        name: artifact
+        path: dist/*
+
+    - name: Publish
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_API_TOKEN }}

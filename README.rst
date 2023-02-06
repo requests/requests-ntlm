@@ -1,11 +1,8 @@
 requests-ntlm
 =============
 
-.. image:: https://travis-ci.org/requests/requests-ntlm.svg?branch=master
-    :target: https://travis-ci.org/requests/requests-ntlm
-
-.. image:: https://coveralls.io/repos/github/requests/requests-ntlm/badge.svg?branch=master
-    :target: https://coveralls.io/github/requests/requests-ntlm?branch=master
+.. image:: https://github.com/requests/requests-ntlm/actions/workflows/ci.yml/badge.svg
+    :target: https://github.com/requests/requests-ntlm/actions/workflows/ci.yml
 
 This package allows for HTTP NTLM authentication using the requests library.
 
@@ -20,7 +17,7 @@ Usage
     from requests_ntlm import HttpNtlmAuth
 
     requests.get("http://ntlm_protected_site.com",auth=HttpNtlmAuth('domain\\username','password'))
-    
+
 ``HttpNtlmAuth`` can be used in conjunction with a ``Session`` in order to
 make use of connection pooling. Since NTLM authenticates connections,
 this is more efficient. Otherwise, each request will go through a new
