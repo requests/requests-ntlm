@@ -1,0 +1,5 @@
+[build-system]
+requires = [
+    "setuptools >= 42.0.0",  # Supports license_files
+]
+build-backend = "setuptools.build_meta"
