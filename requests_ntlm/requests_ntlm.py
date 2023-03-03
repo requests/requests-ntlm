@@ -14,7 +14,7 @@ import spnego
 class ShimSessionSecurity:
     """Shim used for backwards compatibility with ntlm-auth."""
 
-    def __init__(self, context: spnego.ContextProxy) -> None:
+    def __init__(self, context: spnego._context.ContextProxy) -> None:
         self._context = context
 
     def wrap(self, message) -> t.Tuple[bytes, bytes]:
