@@ -138,18 +138,17 @@ class HttpNtlmAuth(AuthBase):
 
         auth_strip = auth_type + " "
 
-        challenges = [
-            s
-            for s in (val.lstrip() for val in auth_header_value.split(","))
-            if s.startswith(auth_strip)
-        ]
-
-        if not challenges:
-            raise AccessDenied("Access denied")
-
         ntlm_header_value = next(
-            challenges
+            (
+                s
+                for s in (val.lstrip() for val in auth_header_value.split(","))
+                if s.startswith(auth_strip)
+            ),
+            None
         ).strip()
+        
+        if not ntlm_header_value:
+            raise PermissionError("Access denied: Server did not respond with NTLM challenge token")
 
         # Parse the challenge in the ntlm context and perform
         # the second step of authentication
