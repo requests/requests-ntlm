@@ -11,6 +11,10 @@ from requests.packages.urllib3.response import HTTPResponse
 import spnego
 
 
+class AccessDenied(Exception):
+    pass
+
+
 class ShimSessionSecurity:
     """Shim used for backwards compatibility with ntlm-auth."""
 
@@ -134,10 +138,17 @@ class HttpNtlmAuth(AuthBase):
 
         auth_strip = auth_type + " "
 
-        ntlm_header_value = next(
+        challenges = [
             s
             for s in (val.lstrip() for val in auth_header_value.split(","))
             if s.startswith(auth_strip)
+        ]
+
+        if not challenges:
+            raise AccessDenied("Access denied")
+
+        ntlm_header_value = next(
+            challenges
         ).strip()
 
         # Parse the challenge in the ntlm context and perform
