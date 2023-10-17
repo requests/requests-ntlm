@@ -18,7 +18,11 @@ def negotiate_auth():
 def negotiate_and_ntlm_auth():
     return get_auth_response('NTLM', advertise_nego_and_ntlm=True)
 
-def get_auth_response(auth_type, advertise_nego_and_ntlm=False):
+@app.route("/no_challenge")
+def no_challenge():
+    return get_auth_response('Negotiate', no_challenge=True)
+
+def get_auth_response(auth_type, advertise_nego_and_ntlm=False, no_challenge=False):
     # Get the actual header that is returned by requests_ntlm
     actual_header = request.headers.get('Authorization', '')
 
@@ -43,7 +47,11 @@ def get_auth_response(auth_type, advertise_nego_and_ntlm=False):
         # Get the NTLM version number (bytes 9 - 12)
         message_type = struct.unpack("<I", msg[8:12])[0]
 
-        if message_type == negotiate_message_type:
+        if no_challenge:
+            response_headers = {'WWW-Authenticate': auth_type}
+            response = "access denied"
+            status_code = 401
+        elif message_type == negotiate_message_type:
             # Initial NTLM message from client, attach challenge token
             challenge_response = ('TlRMTVNTUAACAAAAAwAMADgAAAAzgoriASNFZ4mrze8AAAA'
                                   'AAAAAACQAJABEAAAABgBwFwAAAA9TAGUAcgB2AGUAcgACAA'
