@@ -54,6 +54,20 @@ class TestRequestsNtlm(unittest.TestCase):
             self.assertTrue(res.history[0].request is not res.history[1].request)
             self.assertTrue(res.history[0].request is not res.request)
 
+    def test_permissions_denied(self):
+        auth = requests_ntlm.HttpNtlmAuth(
+            self.test_server_username,
+            self.test_server_password,
+        )
+
+        with self.assertRaises(PermissionError) as e:
+            requests.get(
+                url=f"{self.test_server_url}no_challenge",
+                auth=auth,
+            )
+
+        self.assertEqual(str(e.exception), "Access denied: Server did not respond with NTLM challenge token")
+
 
 class TestCertificateHash(unittest.TestCase):
 
