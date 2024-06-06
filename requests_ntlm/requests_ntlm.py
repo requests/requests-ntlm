@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 import warnings
 import base64
 import typing as t
 
 from urllib.parse import urlparse
+
+import requests
+import spnego
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -10,7 +15,6 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.exceptions import UnsupportedAlgorithm
 from requests.auth import AuthBase
 from requests.packages.urllib3.response import HTTPResponse
-import spnego
 
 
 class ShimSessionSecurity:
@@ -19,7 +23,7 @@ class ShimSessionSecurity:
     def __init__(self, context: spnego.ContextProxy) -> None:
         self._context = context
 
-    def wrap(self, message) -> t.Tuple[bytes, bytes]:
+    def wrap(self, message: bytes) -> tuple[bytes, bytes]:
         wrap_res = self._context.wrap(message, encrypt=True)
         signature = wrap_res.data[:16]
         data = wrap_res.data[16:]
@@ -44,7 +48,13 @@ class HttpNtlmAuth(AuthBase):
     Supports pass-the-hash.
     """
 
-    def __init__(self, username, password, session=None, send_cbt=True):
+    def __init__(
+        self,
+        username: str | None,
+        password: str | None,
+        session: None = None,
+        send_cbt: bool = True,
+    ) -> None:
         """Create an authentication handler for NTLM over HTTP.
 
         :param str username: Username in 'domain\\username' format
@@ -59,16 +69,16 @@ class HttpNtlmAuth(AuthBase):
         # This exposes the encrypt/decrypt methods used to encrypt and decrypt messages
         # sent after ntlm authentication. These methods are utilised by libraries that
         # call requests_ntlm to encrypt and decrypt the messages sent after authentication
-        self.session_security = None
+        self.session_security: ShimSessionSecurity | None = None
 
     def retry_using_http_NTLM_auth(
         self,
-        auth_header_field,
-        auth_header,
-        response,
-        auth_type,
-        args,
-    ):
+        auth_header_field: str,
+        auth_header: str,
+        response: requests.Response,
+        auth_type: str,
+        args: t.Any,
+    ) -> requests.Response:
         # Get the certificate of the server if using HTTPS for CBT
         server_certificate_hash = self._get_server_cert(response)
         cbt = None
@@ -84,7 +94,7 @@ class HttpNtlmAuth(AuthBase):
         content_length = int(
             response.request.headers.get("Content-Length", "0"), base=10
         )
-        if hasattr(response.request.body, "seek"):
+        if response.request.body and hasattr(response.request.body, "seek"):
             if content_length > 0:
                 response.request.body.seek(-content_length, 1)
             else:
@@ -96,7 +106,7 @@ class HttpNtlmAuth(AuthBase):
         response.raw.release_conn()
         request = response.request.copy()
 
-        target_hostname = urlparse(response.url).hostname
+        target_hostname = t.cast(str, urlparse(response.url).hostname)
         spnego_options = spnego.NegotiateOptions.none
         if self.username and self.password:
             # If a username and password are specified force spnego to use the
@@ -117,7 +127,7 @@ class HttpNtlmAuth(AuthBase):
             options=spnego_options,
         )
         # Perform the first step of the NTLM authentication
-        negotiate_message = base64.b64encode(client.step()).decode()
+        negotiate_message = base64.b64encode(client.step() or b"").decode()
         auth = "%s %s" % (auth_type, negotiate_message)
 
         request.headers[auth_header] = auth
@@ -129,7 +139,7 @@ class HttpNtlmAuth(AuthBase):
         # challenge and not the real content, so the content will be short
         # anyway.
         args_nostream = dict(args, stream=False)
-        response2 = response.connection.send(request, **args_nostream)
+        response2 = response.connection.send(request, **args_nostream)  # type: ignore[attr-defined]
 
         # needed to make NTLM auth compatible with requests-2.3.0
 
@@ -165,7 +175,7 @@ class HttpNtlmAuth(AuthBase):
         # Parse the challenge in the ntlm context and perform
         # the second step of authentication
         val = base64.b64decode(ntlm_header_value[len(auth_strip) :].encode())
-        authenticate_message = base64.b64encode(client.step(val)).decode()
+        authenticate_message = base64.b64encode(client.step(val) or b"").decode()
 
         auth = "%s %s" % (auth_type, authenticate_message)
         request.headers[auth_header] = auth
@@ -179,7 +189,7 @@ class HttpNtlmAuth(AuthBase):
 
         return response3
 
-    def response_hook(self, r, **kwargs):
+    def response_hook(self, r: requests.Response, **kwargs: t.Any) -> requests.Response:
         """The actual hook handler."""
         if r.status_code == 401:
             # Handle server auth.
@@ -209,7 +219,7 @@ class HttpNtlmAuth(AuthBase):
 
         return r
 
-    def _get_server_cert(self, response):
+    def _get_server_cert(self, response: requests.Response) -> bytes | None:
         """
         Get the certificate at the request_url and return it as a hash. Will get the raw socket from the
         original response from the server. This socket is then checked if it is an SSL socket and then used to
@@ -240,7 +250,7 @@ class HttpNtlmAuth(AuthBase):
 
         return None
 
-    def __call__(self, r):
+    def __call__(self, r: requests.PreparedRequest) -> requests.PreparedRequest:
         # we must keep the connection because NTLM authenticates the
         # connection, not single requests
         r.headers["Connection"] = "Keep-Alive"
@@ -249,7 +259,7 @@ class HttpNtlmAuth(AuthBase):
         return r
 
 
-def _auth_type_from_header(header):
+def _auth_type_from_header(header: str) -> str | None:
     """
     Given a WWW-Authenticate or Proxy-Authenticate header, returns the
     authentication type to use. We prefer NTLM over Negotiate if the server
@@ -263,7 +273,7 @@ def _auth_type_from_header(header):
     return None
 
 
-def _get_certificate_hash(certificate_der):
+def _get_certificate_hash(certificate_der: bytes) -> bytes | None:
     # https://tools.ietf.org/html/rfc5929#section-4.1
     cert = x509.load_der_x509_certificate(certificate_der, default_backend())
 
@@ -279,7 +289,7 @@ def _get_certificate_hash(certificate_der):
 
     # if the cert signature algorithm is either md5 or sha1 then use sha256
     # otherwise use the signature algorithm
-    if hash_algorithm.name in ["md5", "sha1"]:
+    if not hash_algorithm or hash_algorithm.name in ["md5", "sha1"]:
         digest = hashes.Hash(hashes.SHA256(), default_backend())
     else:
         digest = hashes.Hash(hash_algorithm, default_backend())
