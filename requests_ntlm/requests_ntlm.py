@@ -2,6 +2,8 @@ import warnings
 import base64
 import typing as t
 
+from urllib.parse import urlparse
+
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -94,11 +96,25 @@ class HttpNtlmAuth(AuthBase):
         response.raw.release_conn()
         request = response.request.copy()
 
+        target_hostname = urlparse(response.url).hostname
+        spnego_options = spnego.NegotiateOptions.none
+        if self.username and self.password:
+            # If a username and password are specified force spnego to use the
+            # pure NTLM code. This is for backwards compatibility with older
+            # requests-ntlm versions which never used SSPI. If no username and
+            # password are specified we need to rely on the cached SSPI
+            # behaviour.
+            # https://github.com/requests/requests-ntlm/issues/136#issuecomment-1751677055
+            spnego_options = spnego.NegotiateOptions.use_ntlm
+
         client = spnego.client(
             self.username,
             self.password,
             protocol="ntlm",
             channel_bindings=cbt,
+            hostname=target_hostname,
+            service="http",
+            options=spnego_options,
         )
         # Perform the first step of the NTLM authentication
         negotiate_message = base64.b64encode(client.step()).decode()
