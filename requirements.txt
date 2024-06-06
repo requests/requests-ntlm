@@ -1,7 +1,11 @@
+black == 24.4.2
+isort == 5.13.2
 requests>=2.0.0
 pyspnego
 cryptography>=1.3
 flask
+mypy == 1.10.0
 pytest
 pytest-cov
+types-requests
 wheel

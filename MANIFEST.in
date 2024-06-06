@@ -1,1 +1,6 @@
+include CONTRIBUTORS.rst
 include LICENSE
+include requirements.txt
+
+recursive-include tests *
+recursive-exclude tests *.pyc
