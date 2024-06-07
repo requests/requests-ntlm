@@ -8,4 +8,3 @@ mypy == 1.10.0
 pytest
 pytest-cov
 types-requests
-wheel
