@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-import warnings
 import base64
 import typing as t
-
+import warnings
 from urllib.parse import urlparse
 
 import requests
 import spnego
-
 from cryptography import x509
+from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
-from cryptography.exceptions import UnsupportedAlgorithm
 from requests.auth import AuthBase
 from requests.packages.urllib3.response import HTTPResponse
 
@@ -170,7 +168,9 @@ class HttpNtlmAuth(AuthBase):
         )
 
         if not ntlm_header_value:
-            raise PermissionError("Access denied: Server did not respond with NTLM challenge token")
+            raise PermissionError(
+                "Access denied: Server did not respond with NTLM challenge token"
+            )
 
         # Parse the challenge in the ntlm context and perform
         # the second step of authentication
