@@ -1,4 +1,4 @@
-black == 24.4.2
+black == 26.10.1
 isort == 5.13.2
 requests>=2.0.0
 pyspnego
