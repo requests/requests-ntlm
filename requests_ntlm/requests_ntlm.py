@@ -89,14 +89,8 @@ class HttpNtlmAuth(AuthBase):
         if auth_header in response.request.headers:
             return response
 
-        content_length = int(
-            response.request.headers.get("Content-Length", "0"), base=10
-        )
         if response.request.body and hasattr(response.request.body, "seek"):
-            if content_length > 0:
-                response.request.body.seek(-content_length, 1)
-            else:
-                response.request.body.seek(0, 0)
+            requests.utils.rewind_body(response.request)
 
         # Consume content and release the original connection
         # to allow our new request to reuse the same one.
@@ -180,6 +174,9 @@ class HttpNtlmAuth(AuthBase):
         auth = "%s %s" % (auth_type, authenticate_message)
         request.headers[auth_header] = auth
 
+        if request.body and hasattr(request.body, "seek"):
+            requests.utils.rewind_body(request)
+
         response3 = response2.connection.send(request, **args)
         # Update the history.
         response3.history.append(response)
@@ -254,6 +251,18 @@ class HttpNtlmAuth(AuthBase):
         # we must keep the connection because NTLM authenticates the
         # connection, not single requests
         r.headers["Connection"] = "Keep-Alive"
+
+        # Requests records this for iterable streams, but also accepts file-like
+        # bodies without __iter__. Capture their position before the first send.
+        if getattr(r, "_body_position", None) is None and hasattr(r.body, "seek"):
+            body_tell = getattr(r.body, "tell", None)
+            if body_tell is not None:
+                try:
+                    position = body_tell()
+                except OSError:
+                    # Preserve a failed tell rather than treating it as zero.
+                    position = object()
+                setattr(r, "_body_position", position)
 
         r.register_hook("response", self.response_hook)
         return r
