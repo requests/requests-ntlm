@@ -89,14 +89,8 @@ class HttpNtlmAuth(AuthBase):
         if auth_header in response.request.headers:
             return response
 
-        content_length = int(
-            response.request.headers.get("Content-Length", "0"), base=10
-        )
         if response.request.body and hasattr(response.request.body, "seek"):
-            if content_length > 0:
-                response.request.body.seek(-content_length, 1)
-            else:
-                response.request.body.seek(0, 0)
+            requests.utils.rewind_body(response.request)
 
         # Consume content and release the original connection
         # to allow our new request to reuse the same one.
@@ -179,6 +173,9 @@ class HttpNtlmAuth(AuthBase):
 
         auth = "%s %s" % (auth_type, authenticate_message)
         request.headers[auth_header] = auth
+
+        if request.body and hasattr(request.body, "seek"):
+            requests.utils.rewind_body(request)
 
         response3 = response2.connection.send(request, **args)
         # Update the history.
