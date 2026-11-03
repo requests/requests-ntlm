@@ -9,6 +9,22 @@ from requests.adapters import BaseAdapter
 from requests_ntlm import HttpNtlmAuth
 
 
+class SeekableBody:
+    """File-like upload without iteration, as accepted by Requests."""
+
+    def __init__(self, stream):
+        self.stream = stream
+
+    def read(self, *args):
+        return self.stream.read(*args)
+
+    def seek(self, *args):
+        return self.stream.seek(*args)
+
+    def tell(self):
+        return self.stream.tell()
+
+
 class NtlmUploadAdapter(BaseAdapter):
     def __init__(self):
         self.context = spnego.server(
@@ -44,7 +60,7 @@ class NtlmUploadAdapter(BaseAdapter):
         pass
 
 
-@pytest.mark.parametrize("text", [False, True])
+@pytest.mark.parametrize("text", [False, True, "filelike"])
 @pytest.mark.parametrize("offset", [0, 3])
 @pytest.mark.parametrize("method", ["POST", "PUT"])
 def test_upload_rewound_for_both_ntlm_retries(
@@ -55,7 +71,11 @@ def test_upload_rewound_for_both_ntlm_retries(
     monkeypatch.setenv("NTLM_USER_FILE", str(credentials))
     filename = tmp_path / "body"
     filename.write_bytes(b"prefix-body-content")
-    with filename.open("r" if text else "rb") as body, requests.Session() as session:
+    with filename.open(
+        "r" if text is True else "rb"
+    ) as body, requests.Session() as session:
+        if text == "filelike":
+            body = SeekableBody(body)
         body.seek(offset)
         expected = body.read()
         body.seek(offset)
@@ -87,3 +107,31 @@ def test_unrewindable_body_fails_before_authentication():
             "www-authenticate", "Authorization", response, "NTLM", {}
         )
     assert body.tell() == len(b"payload")
+
+
+@pytest.mark.parametrize("position", [3, object()])
+def test_auth_preserves_recorded_body_position(position):
+    request = requests.Request(
+        "PUT", "http://localhost/upload", data=io.BytesIO(b"payload")
+    ).prepare()
+    request._body_position = position
+    HttpNtlmAuth("DOMAIN\\user", "Password123!")(request)
+    assert request._body_position is position
+
+
+def test_failed_custom_body_tell_is_not_rewound():
+    class BrokenTell(SeekableBody):
+        def tell(self):
+            raise OSError("position unavailable")
+
+    body = BrokenTell(io.BytesIO(b"payload"))
+    request = requests.Request("PUT", "http://localhost/upload", data=body).prepare()
+    auth = HttpNtlmAuth("DOMAIN\\user", "Password123!", send_cbt=False)
+    auth(request)
+    assert request._body_position is not None
+    response = requests.Response()
+    response.request = request
+    with pytest.raises(requests.exceptions.UnrewindableBodyError):
+        auth.retry_using_http_NTLM_auth(
+            "www-authenticate", "Authorization", response, "NTLM", {}
+        )

@@ -252,6 +252,18 @@ class HttpNtlmAuth(AuthBase):
         # connection, not single requests
         r.headers["Connection"] = "Keep-Alive"
 
+        # Requests records this for iterable streams, but also accepts file-like
+        # bodies without __iter__. Capture their position before the first send.
+        if getattr(r, "_body_position", None) is None and hasattr(r.body, "seek"):
+            body_tell = getattr(r.body, "tell", None)
+            if body_tell is not None:
+                try:
+                    position = body_tell()
+                except OSError:
+                    # Preserve a failed tell rather than treating it as zero.
+                    position = object()
+                setattr(r, "_body_position", position)
+
         r.register_hook("response", self.response_hook)
         return r
 
